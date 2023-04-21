@@ -13,7 +13,7 @@ def arbitrary_hash():
     src_dir = 'Stage/test/'
 
     # Get time and random number to update hash
-    time = datetime.now().replace(microsecond=0)
+    time = datetime.now()
     rnum = nprand.randint(0,9999)
 
     # Make the hash
@@ -30,7 +30,7 @@ def execute(arguments:str):
 
     parser.add_argument( 'source', type=str, help='Source directory' )
     parser.add_argument( '-i', '--indicator', type=str, help='Pattern to match to detect a simulation directory', default='INCAR' )
-    parser.add_argument( '-o', '--output', type=str, help='Name of output file with hash', default='tag' )
+    parser.add_argument( '-o', '--output', type=str, help='Name of output file with hash', default='tag.txt' )
     parser.add_argument( '-l', '--length', type=int, help='Max length of resulting hash', default=16 )
     parser.add_argument( '-f', '--force', action='store_true', help='Force overwrite existing files' )
     parser.add_argument( '-d', '--dryrun', action='store_true', help='Do not write any files')
@@ -53,13 +53,13 @@ def execute(arguments:str):
             print( f'Skipping {dst_file}' )
             continue
 
-        with dst_file.open('w') as f:
-            dst_hash = arbitrary_hash()[:maxlen]
-            if not(dryrun):
+        dst_hash = arbitrary_hash()[:maxlen]
+        if not(dryrun):
+            with dst_file.open('w') as f:
                 f.write( dst_hash )
                 print ( f'Wrote {dst_hash} to {dst_file}' )
-            else:
-                print( f'Would have written {dst_hash} to {dst_file}' )
+        else:
+            print( f'Would have written {dst_hash} to {dst_file}' )
 
 
 if __name__ == '__main__':
