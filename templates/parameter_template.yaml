@@ -1,19 +1,24 @@
 # Example entry
-# namme: {tag: NAME, value: 1, comment: An example}
+# - namme: {tag: NAME, value: 1, comment: An example}
 # or
 # - name:
 #     tag; NAME
 #     value: 1
 #     comment: An example
 
---- # Initialization
+initialization: # Initialization
 
---- # Electronic Optimization
 
---- # Ionic Optimization
+electronic: # Electronic Optimization
 
---- # Algorithms
 
---- # Output
+ionic: # Ionic Optimization
 
---- # Optimizations
+
+algorithms: # Algorithms
+
+
+output: # Output
+
+
+optimizations: # Optimizations
