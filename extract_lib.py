@@ -66,7 +66,7 @@ def get_energies(root:ET.Element) -> dict:
     Return a dictionary of the various energies
     '''
     try:
-        energies = root.find('calculation').find('energy')
+        energies = root.findall('calculation')[-1].find('energy')
         
         en_free, en_wo_entropy, en_0 = [float(e.text) for e in energies]
 
@@ -78,3 +78,40 @@ def get_energies(root:ET.Element) -> dict:
         return DEFAULT_FAIL_DICT
     
     return energy_dict
+
+
+def get_fermienergy(root:ET.Element) -> dict:
+    '''
+    Return the fermi energy of the final configuration
+    '''
+    try:
+        dos = root.find('calculation').find('dos')
+        for entry in dos:
+            if entry.get('name') == 'efermi':
+                efermi = float(entry.text)
+    except:
+        return DEFAULT_FAIL_DICT
+    
+    return {'efermi' : [efermi, 'eV']}
+        
+
+def get_bandgap(root:ET.Element) -> dict:
+    '''
+    Return a dictionary containing the bandgap energy
+    '''
+    # Get the entire DOS branch
+    dos = root.find('calculation').find('dos')
+
+    dos_i = dos.find('i')
+    efermi = float(dos_i.text) if dos_i.get('name') == 'efermi' else 0
+
+    # Retrieve the total DOS, discarding partial
+    dos_total = dos.find('total')
+    dos_total_set = dos_total.find('array').find('set')
+    for i in dos_total_set:
+        print(i)
+        # for j in i:
+        #     print(j)
+
+    #
+    return efermi
