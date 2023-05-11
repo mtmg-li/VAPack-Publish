@@ -85,6 +85,7 @@ def execute(arguments):
                 body += ext.inline_value_string("Ions", ext.get_ions(root)) + '\n'
                 body += ext.inline_value_string("Lattice", ext.get_lattices(root)) + '\n'
                 body += ext.inline_value_string("Energy", ext.get_energies(root)) + '\n'
+                body += ext.inline_value_string("DOS", ext.get_fermienergy(root)) + '\n'
             except ext.ET.ParseError:
                 body = '> [!Error] Failed to Parse'
                 print(f'!!! Failed to read {calc_data_file}. Skipping !!!')
