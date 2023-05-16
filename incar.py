@@ -26,10 +26,17 @@ def format_incar_line(line_dict:dict) -> str:
     '''
     Format a dictionary of tag, value, and comment as a line in an INCAR file
     '''
-    return '{0:<{key_width}}= {1:<{val_width}}! {2}'.format(*line_dict.values(), key_width=KEY_WIDTH, val_width=VAL_WIDTH-2)
+    if len(line_dict['comment']) > 0:
+        line_str = '{0:<{key_width}} = {1:<{val_width}} ! {2}'.format(*line_dict.values(), key_width=KEY_WIDTH-1, val_width=VAL_WIDTH-3)
+    else:
+        line_str = '{0:<{key_width}} = {1:<{val_width}}'.format(*line_dict.values(), key_width=KEY_WIDTH-1, val_width=VAL_WIDTH-2)
+    return line_str
 
 
 def format_incar_section(section_key:str, tags:list) -> str:
+    '''
+    Format a list of tags as a section of an INCAR file
+    '''
     section_string = ''
     section_string += '# ' + section_key.capitalize() + '\n\n'
     if type(tags) in [list, tuple]:
@@ -39,11 +46,17 @@ def format_incar_section(section_key:str, tags:list) -> str:
 
 
 def format_incar(incar_dict:dict) -> str:
+    '''
+    Format the given dictionary as a complete INCAR file
+    '''
     section_strings = [ format_incar_section(section, tag) for section, tag in incar_dict.items() ]
     return '\n\n'.join(section_strings)
 
 
-def update_incar_dict(incar_dict:dict, new_tag:dict, section='Other'):
+def update_incar_tag(incar_dict:dict, new_tag:dict, section='Unspecified'):
+    '''
+    Update the INCAR dictionary with the given new tag (and section)
+    '''
     # First replace any existing occurences, ignoring the section parameter
     for section_key, section_value in incar_dict.items():
         if not( type(section_value) in [tuple, list] ):
@@ -57,11 +70,25 @@ def update_incar_dict(incar_dict:dict, new_tag:dict, section='Other'):
     # If the tag isn't preexisting, search for the correct section to add the tag
     for section_key in incar_dict.keys():
         if section_key.lower() == section.lower():
+            # If section is empty, initialize it as a list
+            if incar_dict[section_key] is None:
+                incar_dict[section_key] = []
             incar_dict[section_key].append(new_tag)
             return
     
     # If neither tag nor section exist, create them both
     incar_dict.update({section.lower().capitalize(): [new_tag]})
+
+
+def update_incar_dict(incar_dict:dict, new_dict:dict):
+    '''
+    Update the INCAR dict with information in the new dict
+    '''
+    for section, tags in new_dict.items():
+        if tags == None:
+            continue
+        for tag in tags:
+            update_incar_tag(incar_dict, tag, section)
 
 
 def execute(arguments):
@@ -75,10 +102,15 @@ def execute(arguments):
 
     template_files = [ Path(i) for i in args.source ]
     
+    data = None
     for template in template_files:
         with template.open('r') as f:
             template_str = f.read()
-            data = load(template_str, Loader=CLoader)
+            if data == None:
+                data = load(template_str, Loader=CLoader)
+            else:
+                new_data = load(template_str, Loader=CLoader)
+                update_incar_dict(data, new_data)
     
     if not( args.system == None ):
         data = incar_system_line(data, args.system)
