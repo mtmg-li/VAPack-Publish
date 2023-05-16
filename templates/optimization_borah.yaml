@@ -1,0 +1,25 @@
+---
+Initialization: # Initialization
+
+Electronic: # Electronic Optimization
+
+Ionic: # Ionic Optimization
+
+Algorithms: # Algorithms
+
+Output: # Output
+
+Optimizations: # Optimizations
+
+  - tag: LPLANE
+    value: .FALSE.
+    comment: No plane-wise distribution in real-space
+
+  - tag: NCORE
+    value: 7
+    comment: Seven bands treated in parallel
+
+  - tag: NSIM
+    value: 4
+    comment: Four bands optimized simultaneously by RMM-DIIS algorithm
+...
