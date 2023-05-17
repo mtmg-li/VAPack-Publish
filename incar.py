@@ -37,8 +37,7 @@ def format_incar_section(section_key:str, tags:list) -> str:
     '''
     Format a list of tags as a section of an INCAR file
     '''
-    section_string = ''
-    section_string += '# ' + section_key.capitalize() + '\n\n'
+    section_string = '# ' + section_key.capitalize() + '\n\n'
     if type(tags) in [list, tuple]:
         for tag in tags:
             section_string += format_incar_line(tag) + '\n'
@@ -96,11 +95,14 @@ def execute(arguments):
 
     parser.add_argument('source', nargs='+', type=str, help='Source files for INCAR templates')
     parser.add_argument('-o','--output', type=str, default='INCAR', help='Output file directory and name')
+    parser.add_argument('-d', '--templatedir', type=str, default='templates', help='Template directory')
     parser.add_argument('-s', '--system', type=str, help='System name')
 
     args = parser.parse_args(arguments)
 
-    template_files = [ Path(i) for i in args.source ]
+    template_dir = Path(args.templatedir)
+    # Create paths to the files, adding the .yaml suffix if it is not specified manually
+    template_files = [ Path(template_dir, i + '.yaml'*(i.find('.yaml')<0)) for i in args.source ]
     
     data = None
     for template in template_files:
