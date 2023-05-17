@@ -6,7 +6,7 @@ Ionic: # Ionic Optimization
     comment: Choose molecular dynamics
 
   - tag: MDALGO
-    value: 1
+    value: 2
     comment: Using Anderson thermostat
 
   - tag: ISIF
@@ -25,7 +25,7 @@ Ionic: # Ionic Optimization
     value: 1.0
     comment: Time step in femtoseconds
 
-  - tag: ANDERSON_PROB
-    value: 0.0
+  - tag: SMASS
+    value: 1.0
     comment: Setting Andersen collision probability to zero to get NVE enseble
 ...

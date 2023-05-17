@@ -6,11 +6,11 @@ Ionic: # Ionic Optimization
     comment: Choose molecular dynamics
 
   - tag: MDALGO
-    value: 1
+    value: 3
     comment: Using Anderson thermostat
 
   - tag: ISIF
-    value: 2
+    value: 3
     comment: Compute stress tensor but do not change box volume/shape
 
   - tag: TEBEG
@@ -25,7 +25,11 @@ Ionic: # Ionic Optimization
     value: 1.0
     comment: Time step in femtoseconds
 
-  - tag: ANDERSON_PROB
+  - tag: LANGEVIN_GAMMA
+    value: 0.0 0.0
+    comment: Set Langevin species friction coefficient; must be zero for all species, otherwise it's NpT
+
+  - tag: LANGEVIN_GAMMA_L
     value: 0.0
-    comment: Setting Andersen collision probability to zero to get NVE enseble
+    comment: Set Langevin species lattice friction coefficient; must be zero, otherwise it's NpT
 ...
