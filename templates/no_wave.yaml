@@ -1,0 +1,7 @@
+---
+Output: # Output
+
+  - tag: LWAVE
+    value: .FALSE.
+    comment: Do not write WAVECAR
+...

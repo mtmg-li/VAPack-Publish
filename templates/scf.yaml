@@ -1,0 +1,17 @@
+---
+Initialization: # Initialization
+
+Electronic: # Electronic Optimization
+
+Ionic: # Ionic Optimization
+  
+  - tag: NSW
+    value: 0
+    comment: No outer ionic steps
+    
+Algorithms: # Algorithms
+
+Output: # Output
+
+Optimizations: # Optimizations
+...
