@@ -1,0 +1,39 @@
+---
+Ionic: # Ionic Optimization
+
+  - tag: IBRION
+    value: 0
+    comment: Choose molecular dynamics
+
+  - tag: MDALGO
+    value: 3
+    comment: Using Anderson thermostat
+
+  - tag: ISIF
+    value: 3
+    comment: Compute stress tensor but do not change box volume/shape
+
+  - tag: TEBEG
+    value: "{TEBEG}"
+    comment: Initial temperature
+
+  - tag: NSW
+    value: "{NSW}"
+    comment: Number of time steps
+
+  - tag: POTIM
+    value: 1.0
+    comment: Time step in femtoseconds
+
+  - tag: LANGEVIN_GAMMA
+    value: "{LANGEVIN_GAMMA}"
+    comment: (Optional) Set the Langevin species friction coefficients for each atomic species (according to POTCAR)
+
+  - tag: LANGEVIN_GAMMA_L
+    value: "{LANGEVIN_GAMMA_L}"
+    comment: (Optional) Set the Langevin species friction coefficients for lattice degrees of freedom (single value)
+
+  - tag: PMASS
+    value: 1000
+    comment: (Optional) Set fictitious mass for lattice degrees of freedom
+...
