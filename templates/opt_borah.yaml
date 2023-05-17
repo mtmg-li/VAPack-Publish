@@ -1,14 +1,4 @@
 ---
-Initialization: # Initialization
-
-Electronic: # Electronic Optimization
-
-Ionic: # Ionic Optimization
-
-Algorithms: # Algorithms
-
-Output: # Output
-
 Optimizations: # Optimizations
 
   - tag: LPLANE
