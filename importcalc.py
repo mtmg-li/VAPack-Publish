@@ -1,10 +1,125 @@
 #!/usr/bin/python3
 
 from pathlib import Path
-import extract_lib as ext
 from datetime import datetime
 from argparse import ArgumentParser
 from sys import argv
+from xml.etree import ElementTree as ET
+import numpy as np
+
+DEFAULT_FAIL_DICT = {'FAILED': '> [!Error] Failed to read!'}
+
+def get_xml_root(file:str) -> ET.Element:
+    return ET.parse(file).getroot()
+
+def inline_value_string(head:str, fields:dict) -> str:
+    '''
+    Return a formatted string of the given dictionary, ready for Obsidian.
+    '''
+    ss = f'### {head}\n\n'
+    for field, value in fields.items():
+        # If it's the DEFAULT_FAIL_DICT, then just grab the content and go
+        if field == 'FAILED':
+            ss += str(value + '\n')
+            break
+
+        if not(type(value[0]) in [tuple, list, np.array]):
+            ss += f'[ {field}:: {value[0]} ] {value[1]}\n'
+        else:
+            ss += f'[ {field}:: ' + ', '.join([str(j) for j in value[0]]) + f' ] {value[1]}\n'
+    return ss
+
+
+def get_lattices(root:ET.Element) -> dict:
+    '''
+    Return a dictionary containing the initial and final lattice parameters
+    '''
+    try:
+        structure_list = root.findall('structure')
+    
+        for s in structure_list:
+            if s.get('name') == 'initialpos':
+                minit = np.vstack( [ np.array(v.text.split()) for v in s.find('crystal').find('varray') ] )
+
+            if s.get('name') == 'finalpos':
+                mfinal = np.vstack( [ np.array(v.text.split()) for v in s.find('crystal').find('varray') ] )
+
+        vinit = [np.linalg.norm(v) for v in minit]
+        vfinal = [np.linalg.norm(v) for v in mfinal]
+        
+        lattice_dict = {'a_i' : [vinit, 'Å'], 'a_f' : [vfinal, 'Å']}
+
+    except:
+        return DEFAULT_FAIL_DICT
+    
+    return lattice_dict
+
+
+def get_ions(root:ET.Element) -> dict:
+    '''
+    Return a count of the ions in the system
+    '''
+    try:
+        n = int(root.find('atominfo').find('atoms').text)
+    except:
+        return DEFAULT_FAIL_DICT
+    
+    return {'ions' : [n,'']}
+
+
+def get_energies(root:ET.Element) -> dict:
+    '''
+    Return a dictionary of the various energies
+    '''
+    try:
+        energies = root.findall('calculation')[-1].find('energy')
+        
+        en_free, en_wo_entropy, en_0 = [float(e.text) for e in energies]
+
+        energy_dict = {'en_fr' : [en_free, 'eV'],
+                    'en_we' : [en_wo_entropy, 'eV'],
+                    'en_0' : [en_0, 'eV'],
+                    'en_we/atom' : [en_wo_entropy/get_ions(root)['ions'][0], 'eV/ion']}
+    except:
+        return DEFAULT_FAIL_DICT
+    
+    return energy_dict
+
+
+def get_fermienergy(root:ET.Element) -> dict:
+    '''
+    Return the fermi energy of the final configuration
+    '''
+    try:
+        dos = root.find('calculation').find('dos')
+        for entry in dos:
+            if entry.get('name') == 'efermi':
+                efermi = float(entry.text)
+    except:
+        return DEFAULT_FAIL_DICT
+    
+    return {'efermi' : [efermi, 'eV']}
+        
+
+def get_bandgap(root:ET.Element) -> dict:
+    '''
+    Return a dictionary containing the bandgap energy
+    '''
+    # Get the entire DOS branch
+    dos = root.find('calculation').find('dos')
+
+    dos_i = dos.find('i')
+    efermi = float(dos_i.text) if dos_i.get('name') == 'efermi' else 0
+
+    # Retrieve the total DOS, discarding partial
+    dos_total = dos.find('total')
+    dos_total_set = dos_total.find('array').find('set')
+    for i in dos_total_set:
+        print(i)
+        # for j in i:
+        #     print(j)
+
+    return efermi
 
 
 def execute(arguments):
@@ -81,12 +196,12 @@ def execute(arguments):
         body = ''
         if calc_data_file.exists():
             try:
-                root = ext.get_xml_root(str(calc_data_file))
-                body += ext.inline_value_string("Ions", ext.get_ions(root)) + '\n'
-                body += ext.inline_value_string("Lattice", ext.get_lattices(root)) + '\n'
-                body += ext.inline_value_string("Energy", ext.get_energies(root)) + '\n'
-                body += ext.inline_value_string("DOS", ext.get_fermienergy(root)) + '\n'
-            except ext.ET.ParseError:
+                root = get_xml_root(str(calc_data_file))
+                body += inline_value_string("Ions", get_ions(root)) + '\n'
+                body += inline_value_string("Lattice", get_lattices(root)) + '\n'
+                body += inline_value_string("Energy", get_energies(root)) + '\n'
+                body += inline_value_string("DOS", get_fermienergy(root)) + '\n'
+            except ET.ParseError:
                 body = '> [!Error] Failed to Parse'
                 print(f'!!! Failed to read {calc_data_file}. Skipping !!!')
         else:
