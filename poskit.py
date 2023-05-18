@@ -4,7 +4,7 @@
 Command line program that provides easy access to tools in Vasp Tool Kit
 """
 
-import vtklib as vtk
+import poskit_lib as pkl
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -21,14 +21,14 @@ def add_vacuum(args):
         args.output = '{}_vacuum{}'.format( file.stem, file.suffix )
 
     # Read in the file
-    poscar = vtk.Base.read_poscar( args.file )
+    poscar = pkl.Base.read_poscar( args.file )
 
     # Create the new POSCAR
-    poscar = vtk.Base.add_vacuum( poscar, args.depth )
+    poscar = pkl.Base.add_vacuum( poscar, args.depth )
 
     # Write the new POSCAR
     if not(args.nowrite):
-        vtk.Base.write_poscar(poscar, args.output)
+        pkl.Base.write_poscar(poscar, args.output)
 
         if args.verbose:
             print( 'Changes written to {}'.format(args.output) )
@@ -52,7 +52,7 @@ def convert(args):
         args.output = '{}_converted{}'.format( file.stem, file.suffix )
     
     # Read in file
-    poscar = vtk.Base.read_poscar(args.file)
+    poscar = pkl.Base.read_poscar(args.file)
 
     # If toggle mode, choose the correct
     if args.mode.lower() == 'toggle':
@@ -63,17 +63,17 @@ def convert(args):
 
     # Convert based on mode
     if args.mode.lower() == 'direct':
-        poscar = vtk.Base.convert_direct(poscar)
+        poscar = pkl.Base.convert_direct(poscar)
 
     elif args.mode.lower() == 'cartesian':
-        poscar = vtk.Base.convert_cartesian(poscar)
+        poscar = pkl.Base.convert_cartesian(poscar)
 
     else:
         raise ValueError( 'Unknown conversion mode \'{}\''.format(args.mode) )
     
     # Write the new POSCAR
     if not(args.nowrite):
-        vtk.Base.write_poscar(poscar, args.output)
+        pkl.Base.write_poscar(poscar, args.output)
 
         if args.verbose:
             print( 'Changes written to {}'.format(args.output) )
@@ -97,7 +97,7 @@ def potcar(args):
     
     # If the POSCAR is a file (not 'none')
     else:
-        poscar = vtk.Base.read_poscar(args.poscar)
+        poscar = pkl.Base.read_poscar(args.poscar)
         species = poscar['species']
 
     # Verbose species message
@@ -118,7 +118,7 @@ def potcar(args):
 
     # Generate and write the potcar
     if not(args.nowrite):
-        vtk.Base.write_potcar( species, args.directory, args.output )
+        pkl.Base.write_potcar( species, args.directory, args.output )
 
         if args.verbose:
             print( 'Changes written to {}'.format(args.output) )
@@ -134,7 +134,7 @@ def potcar(args):
 def freeze(args):
     
     # Initialize file
-    poscar = vtk.Base.read_poscar( args.file )
+    poscar = pkl.Base.read_poscar( args.file )
 
     # Initialize output
     file = Path(args.file)
@@ -152,7 +152,7 @@ def freeze(args):
     # Convert the POSCAR to the correct mode if necessary
     converted = False
     if poscar['rmode'].lower() != args.mode.lower():
-        poscar = vtk.Base.convert_toggle(poscar)
+        poscar = pkl.Base.convert_toggle(poscar)
         converted = True
 
     # Verbose message
@@ -168,14 +168,14 @@ def freeze(args):
         print( 'Applying selective dynamics {} to ions inside ({}, {}, {}) to ({}, {}, {})'.format(args.dimensions, *(args.lower), *(args.upper)) )
 
     # Pass the parameters to the freeze method
-    poscar = vtk.Base.sd_box( poscar, args.lower, args.upper, args.dimensions )
+    poscar = pkl.Base.sd_box( poscar, args.lower, args.upper, args.dimensions )
 
     # If converted, then convert once more
     if converted:
-        poscar = vtk.Base.convert_toggle(poscar)
+        poscar = pkl.Base.convert_toggle(poscar)
 
     # Write the modified poscar
-    vtk.Base.write_poscar( poscar, args.output )
+    pkl.Base.write_poscar( poscar, args.output )
     
 
 # Define top level parser
