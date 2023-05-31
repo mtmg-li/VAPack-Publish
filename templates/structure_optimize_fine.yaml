@@ -1,0 +1,33 @@
+---
+Initialization: # Initialization
+
+  - tag: ICHARG
+    value: 2
+    comment: Superposition of atomic charge densities
+
+Electronic: # Electronic Optimization
+
+  - tag: ENCUT
+    value: 500
+    comment: High plane wave basis energy cutoff
+
+  - tag: SMEAR
+    value: 0
+    comment: Gaussian smearing
+
+  - tag: SIGMA
+    value: 0.1
+    comment: Broadening
+
+  - tag: EDIFF
+    value: 1E-7
+    comment: Fine accuracy
+
+Ionic: # Ionic Optimization
+
+Algorithms: # Algorithms
+
+Output: # Output
+
+Optimizations: # Optimizations
+...

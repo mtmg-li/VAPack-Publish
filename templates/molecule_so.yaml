@@ -1,0 +1,47 @@
+---
+Initialization: # Initialization
+
+  - tag: ISTART
+    value: 0
+    comment: Start from scratch
+
+  - tag: ICHARG
+    value: 2
+    comment: Start from scratch with superposition of charge densities
+
+Electronic: # Electronic Optimization
+
+  - tag: ISMEAR
+    value: 0
+    comment: Gaussian smearing
+
+  - tag: SIGMA
+    value: 0.1
+    comment: Degree of gaussian smearing in eV
+
+Ionic: # Ionic Optimization
+
+  - tag: IBRION
+    value: 2
+    comment: Molecular dynamics
+
+  - tag: ISIF
+    value: 2
+    comment: Positions free; Cell shape and volume fixed
+
+Algorithms: # Algorithms
+
+  - tag: LREAL
+    value: AUTO
+    comment: Automatically determine real-space projections
+
+  - tag: ALGO
+    value: VeryFast
+    comment: RMM-DIIS algorithm for a very fast relaxation
+
+  - tag: PREC
+    value: Normal
+    comment: Standard precision
+
+Output: # Output
+...
