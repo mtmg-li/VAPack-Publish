@@ -1,0 +1,31 @@
+---
+Ionic: # Ionic Optimization
+
+  - tag: IBRION
+    value: 0
+    comment: Choose molecular dynamics
+
+  - tag: MDALGO
+    value: 1
+    comment: Using Anderson thermostat
+
+  - tag: ISIF
+    value: 2
+    comment: Compute stress tensor but do not change box volume/shape
+
+  - tag: TEBEG
+    value: "{TEBEG}"
+    comment: Initial temperature
+
+  - tag: NSW
+    value: "{NSW}"
+    comment: Number of time steps
+
+  - tag: POTIM
+    value: 1.0
+    comment: Time step in femtoseconds
+
+  - tag: ANDERSON_PROB
+    value: 0.0
+    comment: Setting Andersen collision probability to zero to get NVE enseble
+...

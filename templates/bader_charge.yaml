@@ -1,0 +1,17 @@
+---
+
+Algorithms: # Algorithms
+  - tag: PREC
+    value: Accurate
+    comment: Higher accuracy integration grids
+
+Output: # Output
+  - tag: LAECHG
+    value: .TRUE.
+    comment: Includes core charges for correct Bader charge analysis
+
+  - tag: LCHARG
+    value: .TRUE.
+    comment: Write CHGCAR
+
+...
