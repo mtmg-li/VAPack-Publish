@@ -1,0 +1,20 @@
+# Initialization
+
+ISTART = 0 ! Start from scratch
+ICHARG = 2 ! Start from scratch with superposition of charge densities
+
+# Electronic
+
+ISMEAR = 0 ! Gaussian smearing
+SIGMA = 0.1 ! Degree of gaussian smearing in eV
+
+# Ionic
+
+IBRION = 2 ! Ionic relaxation using conjugate gradient
+ISIF = 2 ! Positions free, cell shape and volume fixed
+
+# Algorithms
+
+LREAL = Auto ! Automatically determine real-space projections
+ALGO = VeryFast ! RMM-DIIS algorithm for a very fast relaxation
+PREC = Normal ! Standard precision

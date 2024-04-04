@@ -1,0 +1,15 @@
+# Initialization
+
+ISTART = 0 ! Start from scratch
+ICHARGE = 2 ! Superposition of atomic charge densities
+
+# Electronic
+
+ENCUT = 500 ! High plane wave basis energy cutoff
+ISMEAR = 0 ! Gaussian smearing
+SIGMA = 0.1 ! Broadening
+EDIFF = 1E-7 ! Fine accuracy
+
+# Ionic
+
+EDIFFG = -0.01 ! Force based, fine cutoff threshold

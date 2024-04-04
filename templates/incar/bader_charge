@@ -1,0 +1,8 @@
+# Algorithms
+
+PREC = Accurate ! Higher accuracy integration grids
+
+# Output
+
+LAECHG = .TRUE. ! Includes core charges for correct Bader charge analysis
+CHARG = .TRUE. ! Write CHGCAR

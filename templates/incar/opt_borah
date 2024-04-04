@@ -1,0 +1,5 @@
+# Optimizations
+
+LPLANE = .FALSE. ! No plane-wise distribution in real-space
+NCORE = 24 ! 24 workers per band
+NSIM = 4 ! Four bands optimized simultaneously by RMM-DIIS algorithm
