@@ -3,3 +3,5 @@ INCAR
 POSCAR
 POTCAR
 KPOINTS
+.pytest_cache
+.vscode
