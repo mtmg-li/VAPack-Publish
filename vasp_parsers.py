@@ -1,63 +1,54 @@
 from pathlib import Path
 from ast import literal_eval
 import numpy as np
+from itertools import chain
 
-def parse_incar(file:str, evaluate=False) -> dict:
+
+def parse_incar(file:Path) -> tuple[dict, list]:
     """
     Return a dictionary of all key and value pairs from the given INCAR.
     """
     file = Path(file)
     incar_dict = {}
-    
-    with file.open('r') as f:
-        lines = f.readlines()
-        
-        for line, linenumber in zip(lines, range(1,len(lines)+1)):
-            try:
-                line = line.strip()
-                # Skip comment lines
-                if line[0] in ('#','!'):
-                    continue
-                
-                # Find the split at the = character
-                key_end = line.find('=')
-                if key_end < 0:
-                    raise RuntimeError
+    comment_list = []
 
-                # Retrieve the key
-                key = line[0:key_end].strip()
-                # Check key exists
-                if len(key) < 1:
-                    raise RuntimeError
-                # Make sure there are no spaces
-                if len(key.split()) > 1:
-                    raise RuntimeError
-                
-                # Retrieve the value and skip trailing comments
-                value_end = max( [line.find('#'), line.find('!')] )
-                if value_end == -1:
-                    value_end = len(line)+1
-                value = line[key_end+1:value_end].strip()
-                # Check value exists
-                if len(value) < 1:
-                    raise RuntimeError
-                # Determine types and lists, if applicable
-                if evaluate:
-                    value = value.split()    
-                    for i in range(len(value)):
-                        try:
-                            value[i] = literal_eval(value[i])
-                        except SyntaxError:
-                            pass
-                    if len(value) == 1:
-                        value = value[0]
-                
-                incar_dict[key] = value
-                
-            except RuntimeError:
-                raise RuntimeError('line {}: {}'.format(linenumber, line))
-            
-    return incar_dict
+    with file.open('r') as incar_file:
+        incar_text = incar_file.readlines()
+        for line in incar_text:
+            line = line.strip()
+            # Line formatting sanity checks
+            if len(line) == 0:
+                continue
+            if line[0] in ('#','!'):
+                continue
+            if not('=' in line):
+                continue
+            # Retrieve values without extra whitespace
+            key, value = [i.strip() for i in line.split('=',maxsplit=1)]
+            comment = ''
+            # Determine if there are additional comments after the values
+            if '!' in value or '#' in value:
+                comment_start = np.array([value.find('!'), value.find('#')])
+                comment_start *= -1 if -1 in comment_start else 1
+                comment_start = np.abs( comment_start.min() )
+                comment = value[comment_start+1:].strip()
+                value = value[:comment_start].strip()
+            # Make sure the key and value aren't blank
+            if len(key) == 0 or len(value) == 0:
+                continue
+            # Evaluate the value string to cast as the appropriate type
+            # Defaults to original string in event of failure
+            try:
+                value = literal_eval(value)
+            except ValueError:
+                pass
+            except SyntaxError:
+                pass
+            # Modify the return dictionary and list
+            incar_dict[str(key)] = value
+            comment_list.append(comment)
+    
+    return incar_dict, comment_list
 
 
 def parse_poscar(file:str) -> dict:
@@ -69,7 +60,7 @@ def parse_poscar(file:str) -> dict:
     file = Path(file)
     poscar_dict = {'comment': None,
             'scaling': None,
-            'lattice': None,
+            'lattice_vectors': None,
             'species': None,
             'n_ions': None,
             'selective_dynamics': None,
