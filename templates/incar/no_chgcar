@@ -1,0 +1,3 @@
+# Output
+
+LCHARG = .FALSE. ! Do not write CHG and CHGCAR
