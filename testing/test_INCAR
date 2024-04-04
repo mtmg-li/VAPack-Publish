@@ -1,0 +1,9 @@
+# Section 1
+
+VALUE1 = 1 # Comment 1 with another # and = in it and also ! in it
+
+VALUE2 = 2 # Comment 2
+
+VALUE3 = 3
+
+VALUE4 = # Ill formed line
