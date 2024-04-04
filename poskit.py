@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 """
 Command line program that provides easy access to tools in Vasp Tool Kit
@@ -7,7 +7,7 @@ Command line program that provides easy access to tools in Vasp Tool Kit
 import poskit_lib as pkl
 from argparse import ArgumentParser
 from pathlib import Path
-
+import sys
 
 # Function to adjust vacuums within a unit cell
 def add_vacuum(args):
@@ -219,4 +219,9 @@ parser_freeze.set_defaults( func=freeze )
 
 # Run this stuff
 args = parser.parse_args()
-args.func(args)
+
+if args.__contains__('func'):
+    args.func(args)
+else:
+    parser.print_help(sys.stderr)
+    sys.exit(1)
