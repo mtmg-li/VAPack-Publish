@@ -128,6 +128,8 @@ def parse_poscar(file:str) -> dict:
             # Read selective dynamics
             if poscar_dict['selective_dynamics']:
                 sdl = line[3:6]
+                if len(sdl) != 3:
+                    raise RuntimeError( 'Malformed selective dynamics flags on atom {}'.format(i))
                 # Check that these are actually selective dynamics markers
                 if False in [ a in ['T', 'F'] for a in sdl ]:
                     raise ValueError( 'Unknown selective dynamics entry on atom {}'.format(i))
