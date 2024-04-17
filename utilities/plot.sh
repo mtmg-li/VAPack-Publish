@@ -29,10 +29,10 @@ END=0
 
 while getopts ':y:w:b:e:' opt; do
     case "${opt}" in
-        y) HEIGHT=${OPTARG} ;;
-        w) WIDTH=${OPTARG} ;;
-        b) START=${OPTARG} ;;
-        e) END=${OPTARG} ;;
+        y)  HEIGHT=${OPTARG} ;;
+        w)  WIDTH=${OPTARG} ;;
+        b)  START=${OPTARG} ;;
+        e)  END=${OPTARG} ;;
         *)
             usage
             ;;
@@ -85,6 +85,11 @@ BEGIN {
     CONVFMT = "%.6g"
     # Maximum of 8 for energy label plus axis line
     width = vwidth-14
+    if (width > n-s)
+    {
+        width = n-s
+        vwidth = width+14
+    }
     # 2 lines for axis line and label
     height = vheight-2
     if (width < 10 || height < 3)
