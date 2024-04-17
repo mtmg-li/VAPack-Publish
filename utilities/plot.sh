@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-usage() { echo "Usage: $0 FILE [-y <height>] [-w <width>] [-e <end>]" 1>&2; exit 1; }
+usage() { echo "Usage: $0 FILE [-y <height>] [-w <width>] [-b <begin>] [-e <end>]" 1>&2; exit 1; }
 
 # OSZICAR file
 FILE=$1
@@ -27,10 +27,11 @@ WIDTH=$(tput cols)
 START=1
 END=0
 
-while getopts ':y:w:e:' opt; do
+while getopts ':y:w:b:e:' opt; do
     case "${opt}" in
         y) HEIGHT=${OPTARG} ;;
         w) WIDTH=${OPTARG} ;;
+        b) START=${OPTARG} ;;
         e) END=${OPTARG} ;;
         *)
             usage
@@ -76,10 +77,10 @@ BEGIN {
         failure = 1
         exit
     }
-    data[1] = 0
-    for (i=2;i<=width;i++)
+    data[s] = 0
+    for (i=1;i<width;i++)
     {
-        key = int(i/width*n)
+        key = int(i/width*(n-s))+s
         data[key] = 0
     }
     title = "Energy plot from OSZICAR"
@@ -101,8 +102,8 @@ END {
         exit 1
     # Get the maximum and minimum energy values in the dataset
     # Is possible to accidentally skip peaks
-    nrgmax = data[1]
-    nrgmin = data[1]
+    nrgmax = data[s]
+    nrgmin = data[s]
     for (i in data)
     {
         if (nrgmax < data[i])
@@ -153,9 +154,10 @@ END {
     for (i=0;i<width;i++)
         printf "_"
     printf "\n"
-    printf "             1"
+    printf "             %s", s
+    s_strl = length(s "")
     n_strl = length(n "")
-    xpadding = (vwidth-20-n_strl)/2
+    xpadding = (vwidth-20-n_strl-s_strl)/2
     printspace(xpadding)
     printf "Step"
     printspace(xpadding)
@@ -163,4 +165,4 @@ END {
 }
 EOF
 
-awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v n=$N -v start=$START "$PLOTSCRIPT" "$FILE"
+awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v n=$N -v s=$START "$PLOTSCRIPT" "$FILE"
