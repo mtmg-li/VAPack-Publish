@@ -40,9 +40,25 @@ while getopts ':y:w:b:e:' opt; do
 done
 
 N=$(grep -cEe '^\s*[0-9]+ F=' "$FILE")
-if [[ ! $END == 0 ]]
+if (( $END == 0 ))
 then
-    N=$END
+    END=$N
+elif (( $END > $N ))
+then
+    echo "End value cannot exceed final step value"
+    exit 1
+fi
+
+if (( $START < 1 ))
+then
+    echo "Starting index cannot be lower than 1"
+    exit 1
+fi
+
+if (( $END < $START ))
+then
+    echo "Starting index cannot preceed ending"
+    exit 1
 fi
 
 read -r -d '' PLOTSCRIPT << 'EOF'
@@ -165,4 +181,4 @@ END {
 }
 EOF
 
-awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v n=$N -v s=$START "$PLOTSCRIPT" "$FILE"
+awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v s=$START -v n=$END "$PLOTSCRIPT" "$FILE"
