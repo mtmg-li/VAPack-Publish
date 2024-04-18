@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 usage() { echo "Usage: $0 FILE [-y <height>] [-w <width>] [-b <begin>] [-e <end>]" 1>&2; exit 1; }
 
 # OSZICAR file
@@ -15,10 +17,19 @@ then
     exit 1
 fi
 
-if [[ ! ${FILE##*/} == "OSZICAR" ]]; then
-    echo "Must be an OSZICAR file (including name)"
-    exit 1
+if ! $(head -n 1 "$FILE" | grep -qEe 'N\s*E\s*dE\s*d eps\s*ncg\s*rms\s*rms\(c\)')
+then
+    if ! $(head -n 1 "$FILE" | grep -qEe 'vasp\.[56].*')
+    then
+        echo "Are you sure this is an OSZICAR or OUTCAR file?"
+        exit 1
+    else
+        IS_OUTCAR=1
+    fi
+else
+    IS_OSZICAR=1
 fi
+
 shift
 
 # Defaults
@@ -26,20 +37,46 @@ HEIGHT=20
 WIDTH=$(tput cols)
 START=1
 END=0
+SEARCH_TAG="E"
 
-while getopts ':y:w:b:e:' opt; do
+while getopts ':y:w:b:e:F' opt; do
     case "${opt}" in
         y)  HEIGHT=${OPTARG} ;;
         w)  WIDTH=${OPTARG} ;;
         b)  START=${OPTARG} ;;
         e)  END=${OPTARG} ;;
+        F)  SEARCH_TAG="F" ;;
         *)
             usage
             ;;
     esac
 done
 
-N=$(grep -cEe '^\s*[0-9]+ F=' "$FILE")
+if [[ "$SEARCH_TAG" == "E" ]]
+then
+    if ! $(head -n 1 "$FILE" | grep -qEe 'N\s*E\s*dE\s*d eps\s*ncg\s*rms\s*rms\(c\)')
+    then
+        echo "Are you sure this is an OSZICAR file?"
+        exit 1
+    else
+        N=$(grep -cEe '^\s*[0-9]+ F=' "$FILE")
+    fi
+
+elif [[ "$SEARCH_TAG" == "F" ]]
+then
+    if ! $(head -n 1 "$FILE" | grep -qEe 'vasp\.[56].*')
+    then
+        echo "Are you sure this is an OUTCAR file?"
+        exit 1
+    else
+        N=$(grep -cEe '-+ Ionic step\s*[0-9]+\s*-+' "$FILE")
+    fi
+
+else
+    echo "Unknown search tag"
+    exit 1
+fi
+
 if (( $END == 0 ))
 then
     END=$N
@@ -81,8 +118,26 @@ function printspace(num    ,i)
         printf " "
 }
 
+function abs(x)
+{
+    return ((x < 0.0) ? -x : x)
+}
+
 BEGIN {
+    # Float to string conversion format. Do not change.
     CONVFMT = "%.6g"
+    # Default minimum difference between peaks that can be shown
+    tol = 1e-6
+    # Set default search tag to E if not provided
+    if (! search_tag)
+        search_tag = "E"
+    # Fail if unrecognized search tag
+    if (! search_tag == "E" || ! search_tag == "F")
+    {
+        printf "Unknown search attribute %s\n", search_tag
+        failure = 1
+        exit
+    }
     # Maximum of 8 for energy label plus axis line
     width = vwidth-14
     if (width > n-s)
@@ -98,23 +153,64 @@ BEGIN {
         failure = 1
         exit
     }
+    # Prefill the data array with the utilized steps
     data[s] = 0
-    for (i=1;i<width;i++)
+    for (i=1;i<=width;i++)
     {
         key = int(i/width*(n-s))+s
         data[key] = 0
     }
-    title = "Energy plot from OSZICAR"
-    padding = int((vwidth-length(title))/2)
-    printspace(padding)
-    printf "%s", title
-    printspace(padding)
-    printf "\n"
+    if (search_tag == "E")
+    {
+        title = "Energy plot from OSZICAR"
+        ylabel = "Energy"
+        unit = " eV "
+    }
+    else if (search_tag == "F")
+    {
+        title = "Maximum Force Norm plot from OUTCAR"
+        ylabel = "Force "
+        unit = "eV/Å"
+        get_step = 1
+        get_head = 0
+        get_force = 0
+        get_foot = 0
+    }
 }
 
-/^\s*[0-9]+ F=/ {
+search_tag == "E" && /^\s*[0-9]+ F=/ {
     if ($1 in data)
         data[$1] = strtonum($3)
+}
+
+search_tag == "F" && get_step && /-+ Ionic step\s*[0-9]+\s*-+/ {
+    if ($4 in data)
+    {
+        step = $4
+        get_step = 0
+        get_head = 1
+    }
+}
+
+search_tag == "F" && get_head && /^\s*POSITION\s+TOTAL-FORCE/ {
+    get_head = 0
+    get_force = 1
+    maxnorm2 = 0
+}
+
+search_tag == "F" && get_force && NF == 6 {
+    if (! get_foot)
+        get_foot = 1
+    norm2 = $4*$4 + $5*$5 + $6*$6
+    if (norm2 > maxnorm2)
+        maxnorm2 = norm2
+}
+
+search_tag == "F" && get_foot && /^ -+$/ {
+    get_foot = 0
+    get_force = 0
+    get_step = 1
+    data[step] = sqrt(maxnorm2)
 }
 
 END {
@@ -131,6 +227,11 @@ END {
             nrgmax = data[i]
         if (nrgmin > data[i])
             nrgmin = data[i]
+    }
+    if (abs(nrgmax-nrgmin) < tol)
+    {
+        printf "Quantity differences too fine to depict with this utility.\n"
+        exit 1
     }
     # Get the energy coverage of each row
     nrgstep = (nrgmax - nrgmin) / height
@@ -152,18 +253,26 @@ END {
         i++
         }
     }
+    # Print the plot
+    padding = int((vwidth-length(title))/2)
+    printspace(padding)
+    printf "%s", title
+    printspace(padding)
+    printf "\n"
     for (j=1;j<=height;j++)
     {
         line = join(viewdata[j], 1, width, SUBSEP)
         if (j==1)
         {
             printspace(8-length(nrgmax ""))
-            printf "%.6g eV |", nrgmax
+            printf "   %.6g |", nrgmax
         }
         else if (j==int(height/2))
-            printf "   Energy   |"
+            printf "   " ylabel "   |"
+        else if (j==int(height/2)+1)
+            printf "    "unit"    |"
         else if (j==height)
-            printf "%.6g eV |", nrgmin
+            printf "   %.6g |", nrgmin
         else
         {
             printf "           "
@@ -186,4 +295,5 @@ END {
 }
 EOF
 
-awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v s=$START -v n=$END "$PLOTSCRIPT" "$FILE"
+awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v s=$START -v n=$END -v search_tag=$SEARCH_TAG "$PLOTSCRIPT" "$FILE"
+# awk -v vwidth=$WIDTH -v vheight=$HEIGHT -v s=$START -v n=$END -v search_tag=$SEARCH_TAG -f "${SCRIPT_DIR}/plot.awk" "$FILE"
