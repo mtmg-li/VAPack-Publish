@@ -8,6 +8,7 @@ import poskit_lib as pkl
 from argparse import ArgumentParser
 from pathlib import Path
 import sys
+from copy import deepcopy
 
 # Function to adjust vacuums within a unit cell
 def add_vacuum(args):
@@ -176,6 +177,44 @@ def freeze(args):
 
     # Write the modified poscar
     pkl.Base.write_poscar( poscar, args.output )
+
+def interpolate(args):
+    """
+    Linearly interpolate images for an NEB calculation from two POSCAR files
+    """
+    # Load the anchoring POSCARs
+    poscar1 = pkl.Base.read_poscar(args.file_1)
+    poscar2 = pkl.Base.read_poscar(args.file_2)
+
+    # Erase the selective dynamics information since it's superfluous
+    poscar1['sdynam'] = False
+    poscar2['sdynam'] = False
+
+    # TODO: Check if the headers match
+
+    # Ensure that there are the same number of ions in each
+    if len(poscar1['rions']) != len(poscar2['rions']):
+        raise RuntimeError('Number of ions do not match!')
+    
+    
+    # Template the output poscar image
+    image_template = deepcopy(poscar1)
+    
+    # Interpolate between ion positions and save to template
+    nimages = args.images
+    for i in range(nimages+2):
+        # Erase the existing ion data in the template
+        image_template['rions'] = []
+        # Create output path
+        ipath = Path( ".", str(i).zfill(2), "POSCAR" )
+        for ion1, ion2 in zip(poscar1['rions'], poscar2['rions']):
+            dr = ion1 + (ion2-ion1)/(nimages+1)*i
+            image_template['rions'].append(dr)
+        # Create the parent directory
+        ipath.parent.mkdir(parents = True, exist_ok=True)
+        # Write the file
+        with ipath.open('w') as f:
+            f.write(pkl.Base.gen_poscar(image_template))
     
 
 # Define top level parser
@@ -216,6 +255,13 @@ parser_freeze.add_argument( '-m', '--mode', choices=['cartesian','direct'], type
 parser_freeze.add_argument( '-o', '--output', type=str, help='Output file <DEFAULT \'file-stem\'_frozen.\'file-suffix\'>' )
 parser_freeze.set_defaults( func=freeze )
 
+# Define interpolate command
+parser_freeze = subparsers.add_parser( 'interpolate', help='Linearly interpolate images for an NEB calculation from two POSCAR files' )
+parser_freeze.add_argument( 'file_1', type=str, help='Input file 1' )
+parser_freeze.add_argument( 'file_2', type=str, help='Input file 2' )
+parser_freeze.add_argument( '-i', '--images', type=int, help='Number of interpolated images to create', default=1 )
+parser_freeze.add_argument( '-c', '--center', action="store_true", help='Center the POSCARS about center of mass (unused)' )
+parser_freeze.set_defaults( func=interpolate )
 
 # Run this stuff
 args = parser.parse_args()
