@@ -179,15 +179,16 @@ def freeze(args):
     # Write the modified poscar
     pkl.Base.write_poscar( poscar, args.output )
 
+
 def interpolate(args):
     """
     Linearly interpolate images for an NEB calculation from two POSCAR files
     """
     # Load the anchoring POSCARs
-    poscar1 = pkl.Base.read_poscar(args.file_1)
-    poscar2 = pkl.Base.read_poscar(args.file_2)
+    poscar1 = pkl.Base.read_poscar(args.file1)
+    poscar2 = pkl.Base.read_poscar(args.file2)
 
-    # Erase the selective dynamics information since it's superfluous
+    # Erase any selective dynamics information since it's superfluous
     poscar1['sdynam'] = False
     poscar2['sdynam'] = False
 
@@ -198,11 +199,10 @@ def interpolate(args):
         raise RuntimeError('Number of ions do not match!')
     
     # Ensure no ions cross the unit cell boundaries
-    for ion1, ion2, i in zip(poscar1['rions'], poscar2['rions'], range(1,len(poscar1['rions'])+1)):
+    for r1, r2, i in zip(poscar1['rions'], poscar2['rions'], range(1,len(poscar1['rions'])+1)):
             # Check that the ion doesn't cross a boundary, output warning if it does
-            if (np.sign(ion1)*np.sign(ion2)).sum() != 3:
+            if (np.sign(r1)*np.sign(r2)).sum() != 3:
                 print(f"Warning: Ion {i} crossed  boundary between anchor points")
-    
     
     # Template the output poscar image
     image_template = deepcopy(poscar1)
@@ -213,10 +213,9 @@ def interpolate(args):
         # Erase the existing ion data in the template
         image_template['rions'] = []
         # Get interpolated ion positions
-        for ion1, ion2 in zip(poscar1['rions'], poscar2['rions']):
-            # Check that the ion doesn't cross a boundary, output warning if it does
-            dr = ion1 + (ion2-ion1)/(nimages+1)*i
-            image_template['rions'].append(dr)
+        for r1, r2 in zip(poscar1['rions'], poscar2['rions']):
+            nr = r1 + (r2-r1)/(nimages+1)*i
+            image_template['rions'].append(nr)
         # Create output path
         ipath = Path( ".", str(i).zfill(2), "POSCAR" )
         # Create the parent directory
@@ -266,8 +265,8 @@ parser_freeze.set_defaults( func=freeze )
 
 # Define interpolate command
 parser_freeze = subparsers.add_parser( 'interpolate', help='Linearly interpolate images for an NEB calculation from two POSCAR files' )
-parser_freeze.add_argument( 'file_1', type=str, help='Input file 1' )
-parser_freeze.add_argument( 'file_2', type=str, help='Input file 2' )
+parser_freeze.add_argument( 'file1', type=str, help='Input file 1' )
+parser_freeze.add_argument( 'file2', type=str, help='Input file 2' )
 parser_freeze.add_argument( '-i', '--images', type=int, help='Number of interpolated images to create', default=1 )
 parser_freeze.add_argument( '-c', '--center', action="store_true", help='Center the POSCARS about center of mass (unused)' )
 parser_freeze.set_defaults( func=interpolate )
