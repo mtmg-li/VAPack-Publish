@@ -4,6 +4,7 @@
 Command line program that provides easy access to tools in Vasp Tool Kit
 """
 
+import numpy as np
 import poskit_lib as pkl
 from argparse import ArgumentParser
 from pathlib import Path
@@ -196,6 +197,12 @@ def interpolate(args):
     if len(poscar1['rions']) != len(poscar2['rions']):
         raise RuntimeError('Number of ions do not match!')
     
+    # Ensure no ions cross the unit cell boundaries
+    for ion1, ion2, i in zip(poscar1['rions'], poscar2['rions'], range(1,len(poscar1['rions'])+1)):
+            # Check that the ion doesn't cross a boundary, output warning if it does
+            if (np.sign(ion1)*np.sign(ion2)).sum() != 3:
+                print(f"Warning: Ion {i} crossed  boundary between anchor points")
+    
     
     # Template the output poscar image
     image_template = deepcopy(poscar1)
@@ -205,11 +212,13 @@ def interpolate(args):
     for i in range(nimages+2):
         # Erase the existing ion data in the template
         image_template['rions'] = []
-        # Create output path
-        ipath = Path( ".", str(i).zfill(2), "POSCAR" )
+        # Get interpolated ion positions
         for ion1, ion2 in zip(poscar1['rions'], poscar2['rions']):
+            # Check that the ion doesn't cross a boundary, output warning if it does
             dr = ion1 + (ion2-ion1)/(nimages+1)*i
             image_template['rions'].append(dr)
+        # Create output path
+        ipath = Path( ".", str(i).zfill(2), "POSCAR" )
         # Create the parent directory
         ipath.parent.mkdir(parents = True, exist_ok=True)
         # Write the file
