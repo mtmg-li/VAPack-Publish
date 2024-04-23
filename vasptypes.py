@@ -3,6 +3,9 @@ import numpy as np
 import itertools as it
 from typing import TypeAlias
 
+# Storage of position mode (direct or cartesian) is _only_ done in the POSCAR.
+# The units on position of an ion makes no sense unless taken into context with
+# a POSCAR.
 class Ion(object):
     """
     """
@@ -45,6 +48,57 @@ class Poscar(object):
         self.ions = ions
         self.lattice_velocity = lattice_velocity
         self.mdextra = mdextra
+
+    def _toggle_mode(self) -> None:
+        if self.is_direct():
+            self._convert_to_cartesian
+        elif self.is_cartesian():
+            self._convert_to_direct()
+        else:
+            raise RuntimeError('Unrecognized mode descriptor when attempting to toggle!')
+
+    def _convert_to_direct(self) -> None:
+        # Check to make sure it's not already direct
+        if self.is_direct():
+            raise RuntimeWarning('POSCAR is already in direct mode.')
+        
+        # Create the transformation matrix
+        A = self.lattice.transpose()
+        Ainv = np.linalg.inv(A)
+
+        # Convert all ion positions to fractions of the lattice vectors and round to zero
+        tol = 1e-8
+        for ion in self.ions:
+            r = Ainv @ ion.position
+            r = r * np.array(r>tol, dtype=int)
+            ion.position = r
+
+        # Change the mode string
+        self.mode = "Direct"
+
+    def _convert_to_cartesian(self) -> None:
+        # Check to make sure it's not already cartesian
+        if self.is_cartesian():
+            raise RuntimeWarning('POSCAR is already in cartesian mode.')
+        
+        # Create the transformation matrix
+        A = self.lattice.transpose()
+
+        # Convert all ion positions to fractions of the lattice vectors and round to zero
+        tol = 1e-8
+        for ion in self.ions:
+            r = A @ ion.position
+            r = r * np.array(r>tol, dtype=int)
+            ion.position = r
+
+        # Change the mode string
+        self.mode = "Cartesian"
+
+    def is_cartesian(self) -> bool:
+        return self.mode[0].lower() in ('c','k')
+    
+    def is_direct(self) -> bool:
+        return self.mode[0].lower() == 'd'
 
     @classmethod
     def from_file(cls, poscar_file:str):
@@ -204,4 +258,3 @@ class Poscar(object):
         Path.mkdir(parent, parents=parents, exist_ok=True)
         with output_path.open('w') as f:
             f.write(self.generate_potcar_str(potcar_dir=potcar_dir))
-    
