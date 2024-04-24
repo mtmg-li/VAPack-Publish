@@ -31,6 +31,49 @@ Ions: TypeAlias = list[Ion]
 # Wrapper for an INCAR since it's basically just a dictionary
 Incar: TypeAlias = dict
 
+# Class for containing POTCAR info
+# Does not store POTCAR string, but can create it
+class Potcar(object):
+    """
+    """
+    def __init__(self, potentials:list=[], directory:str='.'):
+        self.potentials = potentials
+        self.directory = Path(directory)
+        if not(self.directory.exists()):
+            raise RuntimeError('Provided potcar directory does not exist!')
+        
+    @classmethod
+    def from_poscar(cls, input:str='POSCAR', directory:str='.'):
+        poscar = Poscar.from_file(input)
+        return cls(list(poscar.species.keys()), directory)
+
+    def to_string(self) -> str:
+        # Choose the LDA or PBE automatically if it isn't specified
+        if not(self.directory.name.lower() in ['gga', 'lda']):
+            if len(self.potentials) > 1:
+                directory = Path(self.directory, 'GGA')
+            else:
+                directory = Path(self.directory, 'LDA')
+
+        # Create a list of paths for the species' POTCARs
+        potential_paths = [ Path(directory, sp, 'POTCAR') for sp in self.potentials ]
+
+        # Return the POTCARs as one concatenated string
+        contents = ''
+        for sp in potential_paths:
+            contents += sp.read_text()
+
+        return contents
+    
+    def to_file(self, output:str='POTCAR', parents:bool=True) -> None:
+        # Choose the LDA or PBE automatically if it isn't specified
+        output_path = Path(output)
+        parent = output_path.parent
+        Path.mkdir(parent, parents=parents, exist_ok=True)
+        with output_path.open('w') as f:
+            f.write(self.to_string())
+
+
 # Class to parse and store POSCAR data in a rich, type hinted, format
 class Poscar(object):
     """
@@ -233,28 +276,9 @@ class Poscar(object):
         Generate a POTCAR for the current POSCAR
         """
         # Define pseudopotential path
-        potcar_dir_path = Path(potcar_dir)
-        
-        # Determine which type if not specified
-        if not(potcar_dir_path.name.lower() in ['gga','lda']):
-            if len(self.species.keys()) > 1:
-                potcar_dir_path = Path(potcar_dir_path, 'GGA')
-            else:
-                potcar_dir_path = Path(potcar_dir_path, 'LDA')
-
-        # Create a list of paths for the species' POTCARs
-        potcar_paths = [Path(potcar_dir_path, sp, 'POTCAR') for sp in self.species.keys()]
-        
-        # Return the POTCARs as one concatenated string
-        potcar_str = ''
-        for potcar in potcar_paths:
-            potcar_str += potcar.read_text()
-
-        return potcar_str
+        potcar = Potcar(self.species.keys(), potcar_dir)
+        return potcar.to_string()
     
-    def generate_potcar_file(self, potcar_dir:str='.', output:str='./POTCAR', parents=True) -> None:
-        output_path = Path(output)
-        parent = output_path.parent
-        Path.mkdir(parent, parents=parents, exist_ok=True)
-        with output_path.open('w') as f:
-            f.write(self.generate_potcar_str(potcar_dir=potcar_dir))
+    def generate_potcar_file(self, potcar_dir:str='.', output:str='POTCAR', parents=True) -> None:
+        potcar = Potcar(self.species.keys(), potcar_dir)
+        potcar.to_file(output)
