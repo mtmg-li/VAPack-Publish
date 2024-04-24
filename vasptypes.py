@@ -185,6 +185,7 @@ class Poscar(object):
 
             # Optional check, selective dynamics
             line = f.readline()
+            s_selective_dynamics = False
             if line[0].lower() == 's':
                 s_selective_dynamics = True
                 line = f.readline()
