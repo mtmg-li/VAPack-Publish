@@ -51,7 +51,7 @@ class Poscar(object):
 
     def _toggle_mode(self) -> None:
         if self.is_direct():
-            self._convert_to_cartesian
+            self._convert_to_cartesian()
         elif self.is_cartesian():
             self._convert_to_direct()
         else:
