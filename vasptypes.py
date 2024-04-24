@@ -47,7 +47,7 @@ class Potcar(object):
         poscar = Poscar.from_file(input)
         return cls(list(poscar.species.keys()), directory)
 
-    def to_string(self) -> str:
+    def generate_string(self) -> str:
         # Choose the LDA or PBE automatically if it isn't specified
         if not(self.directory.name.lower() in ['gga', 'lda']):
             if len(self.potentials) > 1:
@@ -65,13 +65,13 @@ class Potcar(object):
 
         return contents
     
-    def to_file(self, output:str='POTCAR', parents:bool=True) -> None:
+    def generate_file(self, output:str='POTCAR', parents:bool=True) -> None:
         # Choose the LDA or PBE automatically if it isn't specified
         output_path = Path(output)
         parent = output_path.parent
         Path.mkdir(parent, parents=parents, exist_ok=True)
         with output_path.open('w') as f:
-            f.write(self.to_string())
+            f.write(self.generate_string())
 
 
 # Class to parse and store POSCAR data in a rich, type hinted, format
@@ -277,8 +277,8 @@ class Poscar(object):
         """
         # Define pseudopotential path
         potcar = Potcar(self.species.keys(), potcar_dir)
-        return potcar.to_string()
+        return potcar.generate_string()
     
     def generate_potcar_file(self, potcar_dir:str='.', output:str='POTCAR', parents=True) -> None:
         potcar = Potcar(self.species.keys(), potcar_dir)
-        potcar.to_file(output)
+        potcar.generate_file(output)
