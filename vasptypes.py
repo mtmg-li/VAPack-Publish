@@ -111,10 +111,10 @@ class Poscar(object):
 
         # Convert all ion positions to fractions of the lattice vectors and round to zero
         tol = 1e-8
-        for ion in self.ions:
+        for i,ion in enumerate(self.ions):
             r = Ainv @ ion.position
             r = r * np.array(r>tol, dtype=int)
-            ion.position = r
+            self.ions[i].position = r
 
         # Change the mode string
         self.mode = "Direct"
@@ -129,10 +129,10 @@ class Poscar(object):
 
         # Convert all ion positions to fractions of the lattice vectors and round to zero
         tol = 1e-8
-        for ion in self.ions:
+        for i,ion in enumerate(self.ions):
             r = A @ ion.position
             r = r * np.array(r>tol, dtype=int)
-            ion.position = r
+            self.ions[i].position = r
 
         # Change the mode string
         self.mode = "Cartesian"
