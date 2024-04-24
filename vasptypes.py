@@ -25,6 +25,10 @@ class Ion(object):
         self.selective_dynamics = np.array(self.selective_dynamics, dtype=bool)
         self.velocity = np.array(self.velocity, dtype=float)
 
+    @staticmethod
+    def list_to_bools(v):
+        return np.array([ False if f=='F' else True for f in v ], dtype=bool)
+
 # For use in POSCAR type hinting
 Ions: TypeAlias = list[Ion]
 
