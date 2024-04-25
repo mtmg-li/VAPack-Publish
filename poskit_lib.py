@@ -16,7 +16,7 @@ from copy import deepcopy
 #    meant to be instantiated as objects. They are containers
 #    for each subcommand, its parser, and its functions that
 #    enable easy additions without modifying the main program,
-#    reduces redundancy, and helps organization.
+#    reduce redundancy, and help organization.
 #
 # 3. The run function in each subcommand MUST take the exact
 #    same arguments as are created in its parser's namespace.
