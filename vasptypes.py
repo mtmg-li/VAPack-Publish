@@ -2,6 +2,7 @@ from pathlib import Path
 import numpy as np
 import itertools as it
 from typing import TypeAlias
+from ast import literal_eval
 
 # Storage of position mode (direct or cartesian) is _only_ done in the POSCAR.
 # The units on position of an ion makes no sense unless taken into context with
@@ -32,9 +33,59 @@ class Ion(object):
 # For use in POSCAR type hinting
 Ions: TypeAlias = list[Ion]
 
-# Wrapper for an INCAR since it's basically just a dictionary
-Incar: TypeAlias = dict
+# Class for an INCAR since it's basically just a dictionary
+class Incar(dict):
 
+    # Use the normal dictionary constructor
+    # Add a comments list on the side
+    def __init__(self, d, comments:list=[]):
+        self.comments = comments
+        super().__init__(d)
+
+    @classmethod
+    def from_file(cls, input:str="INCAR"):
+        input_path = Path(input)
+        incar_dict = {}
+        comment_list = []
+
+        with input_path.open('r') as incar_file:
+            incar_text = incar_file.readlines()
+            for line in incar_text:
+                line = line.strip()
+                # Line formatting sanity checks
+                if len(line) == 0:
+                    continue
+                if line[0] in ('#','!'):
+                    continue
+                if not('=' in line):
+                    continue
+                # Retrieve values without extra whitespace
+                key, value = [i.strip() for i in line.split('=',maxsplit=1)]
+                comment = ''
+                # Determine if there are additional comments after the values
+                if '!' in value or '#' in value:
+                    comment_start = np.array([value.find('!'), value.find('#')])
+                    comment_start *= -1 if -1 in comment_start else 1
+                    comment_start = np.abs( comment_start.min() )
+                    comment = value[comment_start+1:].strip()
+                    value = value[:comment_start].strip()
+                # Make sure the key and value aren't blank
+                if len(key) == 0 or len(value) == 0:
+                    continue
+                # Evaluate the value string to cast as the appropriate type
+                # Defaults to original string in event of failure
+                try:
+                    value = literal_eval(value)
+                except ValueError:
+                    pass
+                except SyntaxError:
+                    pass
+                # Modify the return dictionary and list
+                incar_dict[str(key)] = value
+                comment_list.append(comment)
+        
+        return cls(incar_dict, comment_list)
+    
 # Class for containing POTCAR info
 # Does not store POTCAR string, but can create it
 class Potcar(object):
