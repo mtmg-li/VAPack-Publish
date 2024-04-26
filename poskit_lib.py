@@ -1,4 +1,5 @@
 from vasptypes import Ion, Poscar, Incar, Potcar
+import vasptypes_extension as vte
 from argparse import Namespace
 from pathlib import Path
 import numpy as np
@@ -186,26 +187,28 @@ class potcar(Subcommand):
         if verbose:
             print( 'Changes written to {}'.format(output_path) )
 
-class freeze(Subcommand):
+class slabfreeze(Subcommand):
     description = "Change the selective dynamics flags for all ions inside defined box"
     parser = ArgumentParser()
     parser.add_argument( 'input', type=str, help='Input file' )
-    parser.add_argument( '-l', '--lower', nargs=3, required=True, type=float,
-                        help='Lower bound coordinates for box | Either (x,y,z) or (a,b,c)' )
-    parser.add_argument( '-u', '--upper', nargs=3, required=True, type=float,
-                        help='Upper bound coordinates for box | Either (x,y,z) or (a,b,c)' )
-    parser.add_argument( '-d', '--dimensions', nargs=3, required=True, type=str,
+    parser.add_argument( 'dimensions', nargs=3, type=str,
                         help='Allow for motion along dimension with T or F' )
-    parser.add_argument( '-m', '--mode', choices=['cartesian','direct'], type=str,
+    parser.add_argument( '-x', '--x_range', nargs=2, type=float,
+                        help='Lower and upper x range' )
+    parser.add_argument( '-y', '--y_range', nargs=2, type=float,
+                        help='Lower and upper y range' )
+    parser.add_argument( '-z', '--z_range', nargs=2, type=float,
+                        help='Lower and upper z range' )
+    parser.add_argument( '-m', '--mode', choices=['cartesian','c','k','direct','d'], type=str,
                         help='Dimensions provided in Cartesian or Direct mode <DEFAULT Mode of POSCAR>' )
     parser.add_argument( '-o', '--output', type=str,
                         help='Output file <DEFAULT \'file-stem\'_frozen.\'file-suffix\'>' )
-    parser.add_argument( '-f', '--overwrite_unspecified', action='store_false',
+    parser.add_argument( '-p', '--preserve_unspecified', action='store_true',
                         help="Overwrite the existing selective dynamics flags")
 
     @staticmethod
-    def run(input:str, lower:list=[], upper:list=[], dimensions:list=[],
-            mode:str=None, output:str=None, overwrite_unspecified:bool=True,
+    def run(input:str, x_range:list[float]=None, y_range:list[float]=None, z_range:list[float]=None,
+            dimensions:list=[], mode:str=None, output:str=None, preserve_unspecified:bool=False,
             verbose:bool=False, no_write:bool=False):
         # Read the input file
         input_path = Path(input)
@@ -217,57 +220,44 @@ class freeze(Subcommand):
 
         # Verbose message
         if verbose:
-            print( 'Creating POSCAR from {}'.format(input_path) )
+            print( f'Creating POSCAR from {input_path}' )
+            print( 'Using {} mode'.format('auto' if mode is None else mode) )
+            range_str = []
+            if not(x_range is None):
+                range_str.append(f"{x_range[0]} <= x <= {x_range[1]}")
+            if not(y_range is None):
+                range_str.append(f"{y_range[0]} <= y <= {y_range[1]}")
+            if not(z_range is None):
+                range_str.append(f"{z_range[0]} <= z <= {z_range[1]}")
+            range_str = ', '.join(range_str)
+            print( f'Applying selective dynamics {dimensions} to ions inside {range_str}' )
 
-        # If mode was not set, grab it automatically
-        if mode is None:
-            mode = poscar.mode
-
-        # Convert the POSCAR to the correct mode if necessary
-        converted = False
-        if poscar.mode[0].lower() != mode[0].lower():
-            poscar._toggle_mode()
-            converted = True
-
-        # Verbose message
-        if verbose:
-            print( f'Using {mode} mode' )
-
-        # Check that the modes are the same, otherwise, throw an error now
-        if poscar.mode[0].lower() != mode[0].lower():
-            raise ValueError( 'Unrecognized position mode' )
-
-        # Verbose message
-        if verbose:
-            print( f'Applying selective dynamics {dimensions} to ions inside {lower} to {upper}' )
-
-        # Pass the parameters to the freeze method
-        # TODO: Extract this to its own method called select_box
-        lower = np.array(lower)
-        upper = np.array(upper)
+        # Convert the dimensions to bool
         dimensions = Ion.list_to_bools(dimensions)
-        s, t = 0, 0
-        for i, ion in enumerate(poscar.ions):
-            t += 1
-            if not( (lower <= ion.position).all() and (ion.position <= upper).all() ):
-                if overwrite_unspecified:
-                    poscar.ions[i].selective_dynamics = np.array([True]*3, dtype=bool)
-                continue
-            s += 1
-            poscar.ions[i].selective_dynamics = np.array(dimensions, dtype=bool)
-        if verbose:
-            print(f"Switched {s}/{t}")
+        
+        # Get box selection of ions
+        selection = vte.box_select(poscar, x_range, y_range, z_range, mode)
+
+        # Change the selective dynamics of selection
+        for i, _ in enumerate(poscar.ions):
+            d = dimensions
+            if not( i in selection.indices ):
+                if preserve_unspecified:
+                    continue
+                # poscar.ions[i].selective_dynamics = np.array([True]*3, dtype=bool)
+                d = Ion.list_to_bools(['T','T','T'])
+            poscar.ions[i].selective_dynamics = d
         poscar.selective_dynamics = True
 
-        # If converted, then convert once more
-        if converted:
-            poscar._toggle_mode()
+        # Final verbose message
+        if verbose:
+            print(f"Switched {len(selection)}/{len(poscar.ions)} ions")
 
         # Write the modified poscar
         poscar.to_file(output_path)
 
 class interpolate(Subcommand):
-    description = 'Linearly interpolate images for an NEB calculation from two POSCAR files'
+    description = 'Linearly interpolate images for a NEB calculation from two POSCAR files'
     parser = ArgumentParser()
     parser.add_argument( 'file1', type=str, help='Input file 1' )
     parser.add_argument( 'file2', type=str, help='Input file 2' )
