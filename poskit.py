@@ -21,7 +21,7 @@ subparsers = parser.add_subparsers()
 for subcommand in subcommands:
     subcommand.parser.set_defaults( func=subcommand.run )
     subparsers.add_parser(subcommand.__name__, parents=[subcommand.parser],
-                          add_help=False, help=subcommand.parser.description)
+                          add_help=False, help=subcommand.description)
 
 # Run this stuff
 args = parser.parse_args()
