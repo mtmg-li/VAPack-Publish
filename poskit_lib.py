@@ -1,368 +1,316 @@
-"""
-Module containing methods and tools to create, format, and analyze input and output files for the Vienna Ab-initio Simulation Package.
-"""
-
+from vasptypes import Ion, Poscar, Incar, Potcar
+from argparse import Namespace
 from pathlib import Path
 import numpy as np
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-class Base:
-    """
-    Supporting methods for the vasp toolkit. These rely only on built-ins and common third-party packages.
-    """
+# Notes to whoever attempts to maintain this:
+#
+# 1. While default values for run function arguments exist
+#    in the function definition, they are overridden by the 
+#    argument parser default values, which if not specified
+#    is None.
+#
+# 2. The Subcommand class and any of its subclasses are NOT
+#    meant to be instantiated as objects. They are containers
+#    for each subcommand, its parser, and its functions that
+#    enable easy additions without modifying the main program,
+#    reduce redundancy, and help organization.
+#
+# 3. The run function in each subcommand MUST take the exact
+#    same arguments as are created in its parser's namespace.
+#    In addition, it must also take any that are present in
+#    the parent parser's namespace (currently only 'verbose'
+#    and 'no_write').
 
+# Template class for subcommands. Must be derived from to be
+# automatically discovered.
+class Subcommand:
+    description = ""
+    parser = ArgumentParser()
+    @staticmethod
+    def run():
+        pass
 
-    def read_poscar ( file:str ) -> dict:
-        """
-        Creates a dictionary containing all attributes from a given POSCAR file
-        Keys: comment, scaling, lattice, species, nions, sdynam, rmode, rions, sdions, latvel, ionvel, mdextra
-        """
+class convert(Subcommand):
+    description='Convert the ion position mode of a given POSCAR'
+    parser = ArgumentParser()
+    parser.add_argument( 'input', type=str, help='Input file' )
+    parser.add_argument( '-m', '--mode', default='toggle', choices=['cartesian','direct','toggle'],
+                        type=str, help='Convert to cartesian, direct, or automatically determine <DEFAULT toggle>' )
+    parser.add_argument( '-o', '--output', type=str,
+                        help='Output file <DEFAULT \'file-stem\'_converted.\'file-suffix\'>' )
 
-        # Define paths and POSCAR dictionary
-        POSCAR = Path(file)
-        dictPOSCAR = {'comment': None,
-                'scaling': None,
-                'lattice': None,
-                'species': None,
-                'nions':   None,
-                'sdynam':  None,
-                'rmode' :  None,
-                'rions':   None,
-                'sdions':  None,
-                'latvel':  None,
-                'ionvel':  None,
-                'mdextra': None}
-
-        # Start reading the POSCAR file
-        with POSCAR.open('r') as f:
-            # Read comment line
-            dictPOSCAR['comment'] = f.readline().strip()
-
-            # Read scaling factor(s)
-            scale = f.readline().strip().split()
-            
-            if len(scale) == 1:
-                scale = scale*3
-            elif len(scale) != 3:
-                raise ValueError( 'Wrong number of scaling factors supplied in POSCAR!' )
-
-            dictPOSCAR['scaling'] = np.asarray(scale, dtype=float)
-
-            # Read lattice vectors
-            lvl = []
-            for _ in range(3):
-                lv = np.asarray(f.readline().strip().split(), dtype=float)
-                lvl.append(lv)
-            dictPOSCAR['lattice'] = np.array(lvl, dtype=float).reshape((3,3))
-
-            # Optional check, species names
-            line = f.readline()
-            if line.replace(' ', '').strip().isalpha():
-                dictPOSCAR['species'] = line.split()
-                # Line was optional, so advance to next
-                line = f.readline()
-
-            # Read ions per species
-            dictPOSCAR['nions'] = [ int(n) for n in line.split() ]
-
-            # Optional check, selective dynamics
-            line = f.readline()
-            if line[0].lower() == 's':
-                dictPOSCAR['sdynam'] = True
-                dictPOSCAR['sdions'] = []
-                # Line was optional, so advance to next
-                line = f.readline()
-
-            # Read ion position mode
-            if line[0].lower() in ('c','k'):
-                dictPOSCAR['rmode'] = 'Cartesian'
-            if line[0].lower() == 'd':
-                dictPOSCAR['rmode'] = 'Direct'
-
-            # Read ion positions
-            dictPOSCAR['rions'] = []
-            tions = np.sum(dictPOSCAR['nions'])
-            for i in range(tions):
-                line = f.readline().split()
-                rv = np.array(line[0:3], dtype=float)
-                dictPOSCAR['rions'].append(rv)
-                
-                # Read selective dynamics
-                if dictPOSCAR['sdynam']:
-                    sdl = line[3:6]
-                    # Check that these are actually selective dynamics markers
-                    if False in [ a in ['T', 'F'] for a in sdl ]:
-                        raise ValueError( 'Unknown selective dynamics entry on atom {}'.format(i))
-                    dictPOSCAR['sdions'].append(sdl)
-
-            # TODO: Write code to read in lattice and ion velocities and MD extra
-
-            return dictPOSCAR
-
-
-    def gen_poscar ( poscar:dict ) -> str:
-        """
-        Return a formatted string of the POSCAR dictionary as would be found in a file.
-        """
-
-        poscarString = ''
-
-        # Write comment line
-        poscarString += poscar['comment']
-        poscarString += '\n'
+    @staticmethod
+    def run(input:str, mode:str, output:str=None,\
+            verbose:bool=False, no_write:bool=False) -> None:
+    
+        # Determine output location
+        input_path = Path(input)
+        output_path = Path(f"{input_path.stem}_convert{input_path.suffix}")\
+            if output is None else Path(output)
         
-        # Write scaling factor
-        if len(poscar['scaling']) > 1 and poscar['scaling'].sum() != poscar['scaling'][0]*3:
-            poscarString +=  '  {:>11.8f}  {:>11.8f}  {:>11.8f}'.format(*poscar['scaling'])
-            poscarString += '\n'
-        else:
-            poscarString +=  '  {:>11.8f}'.format(poscar['scaling'][0])
-            poscarString += '\n'
+        # Verbose message
+        if verbose:
+            print( f"Converting ion position mode of {input_path}" )
 
-        # Write lattice vectors
-        for i in poscar['lattice']:
-            poscarString +=  '    {:>11.8f}  {:>11.8f}  {:>11.8f}'.format(*i)
-            poscarString += '\n'
+        # Read in file
+        poscar = Poscar.from_file(input_path)
 
-        # Write the species names
-        line = ''
-        for species in poscar['species']:
-            line += '{:>4s} '.format(species)
-        poscarString +=  '  ' + line.rstrip()
-        poscarString += '\n'
+        # If toggle mode, choose the correct
+        match mode.lower():
+            case "toggle":
+                poscar._toggle_mode()
+            case "cartesian":
+                poscar._convert_to_cartesian()
+            case "direct":
+                poscar._convert_to_direct()
+            case _:
+                raise RuntimeError('Unknown conversion')
+        
+        # Write the new POSCAR
+        if not(no_write):
+            poscar.to_file(output_path)
 
-        # Write species numbers
-        line = ''
-        for n in poscar['nions']:
-            line += '{:>4d} '.format(n)
-        poscarString +=  '  ' + line.rstrip()
-        poscarString += '\n'
-
-        # Write selective dynamics if enabled
-        if poscar['sdynam'] == True:
-            poscarString += 'Selective dynamics'
-            poscarString += '\n'
-
-        # Write position mode
-        poscarString += poscar['rmode']
-        poscarString += '\n'
-
-        # Write the ion positions with selective dynamics tags
-        line = ''
-        for i in range(len(poscar['rions'])):
-            line = '{:>11.8f}  {:>11.8f}  {:>11.8f}'.format(*poscar['rions'][i])
-            if poscar['sdynam'] == True:
-                line += ' {:>1s} {:>1s} {:>1s}'.format(*poscar['sdions'][i])
-            poscarString +=  '  ' + line.rstrip()
-            poscarString += '\n'
-
-    # TODO: Write code to write lattice vector and ion velocities and MD extra
-
-        return poscarString
-
-
-    def write_poscar ( poscar:dict, file:str ) -> str:
-        """
-        Write the POSCAR dictionary to the given file.
-        Returns a copy of the generated POSCAR.
-        """
-
-        # Define file names and paths
-        file = Path(file)
-
-        # Get the POSCAR string
-        poscarString = Base.gen_poscar(poscar)
-
-        # Write the POSCAR file
-        with file.open('w') as f:
-            f.write(poscarString)
-
-
-    def gen_potcar ( species:list, potcarDir:str ) -> str:
-        """
-        From a list of species, generate a POTCAR from the POTCAR directory.
-        """
-
-        # Define file names and paths
-        potcarDir = Path(potcarDir)
-
-        # Choose the LDA or PBE automatically if it isn't specified
-        if not(potcarDir.name.lower() in ['pbe', 'lda']):
-            if len(species) > 1:
-                potcarDir = Path(potcarDir, 'PBE')
+        if verbose:
+            if no_write:
+                print( 'No changes written' )
             else:
-                potcarDir = Path(potcarDir, 'LDA')
+                print( f"Changes written to {output_path}" )
 
-        # Create a list of paths for the species' POTCARs
-        speciesPath = [ Path(potcarDir, sp, 'POTCAR') for sp in species ]
+class vacuum(Subcommand):
+    description='Add vacuum layers to a given POSCAR'
+    parser = ArgumentParser()
+    parser.add_argument( 'input', type=str, help='Input file' )
+    parser.add_argument( 'depth', nargs=3, type=float,
+                        help='Vacuum layer depth in Angstroms along a, b, and c lattice vectors' )
+    parser.add_argument( '-o', '--output', type=str,
+                        help='Output file <DEFAULT \'file-stem\'_vacuum.\'file-suffix\'>' )
 
-        # Return the POTCARs as one concatenated string
-        potcar = ''
-        for sp in speciesPath:
-            potcar += sp.read_text()
+    @staticmethod
+    def run(input:str, depth:np.array, output:str=None,\
+                verbose:bool=False, no_write:bool=False) -> None:
+
+        # Determine output location
+        input_path = Path(input)
+        output_path = Path(f"{input_path.stem}_vacuum{input_path.suffix}")\
+            if output is None else Path(output)
+
+        # Verbose message
+        if verbose:
+            print( f'Adding vacuum depth {depth} A to {input_path}' )
+
+        # Read in the file
+        poscar = Poscar.from_file(input_path)
+
+        # Convert the POSCAR to cartesian
+        poscar._convert_to_cartesian()
+
+        # TODO: Interpret the depth, which may be 3 independent values
+
+        # TODO: Take into account non-unity scaling factors
+
+        # Add the vacuum layer in only the c-direction (roughly)
+        # Take the 3 valued depth, cast to 3x3 diagonal matrix, and add to lattice
+        if type(depth) != np.array:
+            depth = np.array(depth)
+        poscar.lattice += np.diag(depth)
+
+        # Write the new POSCAR
+        if not(no_write):
+            poscar.to_file(output_path)
         
-        return potcar
-    
-    
-    def write_potcar ( species:list, potcarDir:str, file:str ) -> str:
-        """
-        From a list of species, generate a POTCAR and write it to the output file.
-        Returns a copy of the generated POTCAR.
-        """
+        # Verbosity messages
+        if verbose:
+            if no_write:
+                print( 'No changes written' )
+            else:
+                print( 'Changes written to {}'.format(output_path) )
+
+class potcar(Subcommand):
+    description = 'Create a potcar from given input'
+    parser = ArgumentParser()
+    parser.add_argument( 'input', type=str,
+                        help='Source POSCAR for creating the list of species/potentials \
+                            for the POTCAR | May also specify \'none\' to instead use the list argument alone' )
+    parser.add_argument( '-o', '--output', type=str, default='POTCAR', help='Output file <DEFAULT POTCAR>' )
+    parser.add_argument( '-p', '--potentials', nargs='+', default=[],
+                        help='List of potentials | Useful for potentials that differ from the ion species name')
+    parser.add_argument( '-d', '--directory', default='./potcar', type=str,
+                        help='Directory of POTCAR folders <DEFAULT ./potcar/> | Can be used \
+                            to specify PBE or LDA manually' )
+
+    @staticmethod
+    def run(input:str, output:str='POTCAR', potentials:list=[], directory:str='.',
+            verbose:bool=False, no_write:bool=False):
+        # Cast input, output, and directory to paths
+        input_path = Path(input)
+        output_path = Path(output)
+        directory_path = Path(directory)
+
+        # Initialize the species list
+        species = []
+
+        # If the POSCAR is 'none', then use the provided list
+        if input_path.stem.lower() == "none":
+            if len(potentials) < 1:
+                raise RuntimeError('Since POSCAR is "none", a potentials list must be provided!')
+            species = potentials
+
+        # If the POSCAR is a file (not 'none')
+        else:
+            poscar = Poscar.from_file(input_path)
+            species = list(poscar.species.keys())
         
-        # Define file names and paths
-        file = Path(file)
+        # Create the potcar object
+        potcar = Potcar(species, directory_path)
 
-        # Get the POTCAR string
-        potcar = Base.gen_potcar(species, potcarDir)
+        # Verbose species message
+        if verbose:
+            if directory_path.name.lower() in ["gga", "lda"]:
+                print( f"Using {directory_path.name.upper()} potentials" )
+            elif len(species) > 1:
+                print( "Using GGA potentials" )
+            else:
+                print( "Using LDA potentials" )
 
-        # Write the POTCAR file and return a copy of the POTCAR
-        with file.open('w') as f:
-            f.write(potcar)
+        # Generate and write the potcar
+        if no_write:
+            if verbose:
+                print( 'No changes written' )
+            return
+        
+        potcar.generate_file(output_path)
 
-        return potcar
+        if verbose:
+            print( 'Changes written to {}'.format(output_path) )
 
+class freeze(Subcommand):
+    description = "Change the selective dynamics flags for all ions inside defined box"
+    parser = ArgumentParser()
+    parser.add_argument( 'input', type=str, help='Input file' )
+    parser.add_argument( '-l', '--lower', nargs=3, required=True, type=float,
+                        help='Lower bound coordinates for box | Either (x,y,z) or (a,b,c)' )
+    parser.add_argument( '-u', '--upper', nargs=3, required=True, type=float,
+                        help='Upper bound coordinates for box | Either (x,y,z) or (a,b,c)' )
+    parser.add_argument( '-d', '--dimensions', nargs=3, required=True, type=str,
+                        help='Allow for motion along dimension with T or F' )
+    parser.add_argument( '-m', '--mode', choices=['cartesian','direct'], type=str,
+                        help='Dimensions provided in Cartesian or Direct mode <DEFAULT Mode of POSCAR>' )
+    parser.add_argument( '-o', '--output', type=str,
+                        help='Output file <DEFAULT \'file-stem\'_frozen.\'file-suffix\'>' )
+    parser.add_argument( '-f', '--overwrite_unspecified', action='store_false',
+                        help="Overwrite the existing selective dynamics flags")
 
-    def add_vacuum ( poscar:dict, vacuumDepth:list) -> dict:
-        """
-        Return a copy of the POSCAR with vacuum added in the specified dimensions.
-        """
+    @staticmethod
+    def run(input:str, lower:list=[], upper:list=[], dimensions:list=[],
+            mode:str=None, output:str=None, overwrite_unspecified:bool=True,
+            verbose:bool=False, no_write:bool=False):
+        # Read the input file
+        input_path = Path(input)
+        poscar = Poscar.from_file(input)
 
-        # Create a copy of poscar to modify
-        poscar = deepcopy(poscar)
+        # Initialize the output path
+        output_path = Path(f"{input_path.stem}_frozen{input_path.suffix}") if output is None\
+            else Path(output)
 
-        # If the POSCAR is Direct, convert to Cartesian to work with it
+        # Verbose message
+        if verbose:
+            print( 'Creating POSCAR from {}'.format(input_path) )
+
+        # If mode was not set, grab it automatically
+        if mode is None:
+            mode = poscar.mode
+
+        # Convert the POSCAR to the correct mode if necessary
         converted = False
-        if poscar['rmode'] == 'Direct':
-            poscar = Base.convert_cartesian(poscar)
+        if poscar.mode[0].lower() != mode[0].lower():
+            poscar._toggle_mode()
             converted = True
 
-        elif not( poscar['rmode'] in ['Cartesian', 'Direct'] ):
-            raise( ValueError('Unrecognized coordinate mode. Aborting.') )
-        
-        scale = poscar['scaling']
-        # Add the vacuum in the direction of the lattice vectors
-        for i in range(3):
-            row = poscar['lattice'][i]
-            uv = row/np.sqrt(np.sum(row**2))
-            row += vacuumDepth[i] * uv / scale[i]
+        # Verbose message
+        if verbose:
+            print( f'Using {mode} mode' )
 
-        # Return POSCAR to original position mode
-        if converted:
-            poscar = Base.convert_direct(poscar)
-
-        return poscar
-
-
-    def convert_direct ( poscar:dict ) -> dict:
-        """
-        Return a copy of the POSCAR converted from Cartesian to Direct
-        """
-
-        # Create a copy of the POSCAR
-        poscar = deepcopy(poscar)
-
-        # Create the transformation matrix
-        A = poscar['lattice'].transpose()
-        Ainv = np.linalg.inv(A)
-
-        # Convert all ion positions to fractions of the lattice vectors and round to zero
-        delta = 1e-8
-        for r,i in zip( poscar['rions'], range(len(poscar['rions'])) ):
-            r = Ainv @ r
-            r = r * np.array(r>delta, dtype=int)
-            poscar['rions'][i] = r
-
-        # Change the rmode to Direct
-        poscar['rmode'] = 'Direct'
-        
-        return poscar
-
-
-    def convert_cartesian ( poscar:dict ) -> dict:
-        """
-        Return a copy of the POSCAR converted from Direct to Cartesian
-        """
-
-        # Create a copy of the POSCAR
-        poscar = deepcopy(poscar)
-
-        # Create the transformation matrix
-        A = poscar['lattice'].transpose()
-
-        # Multiple each ion position by the transformation matrix and round to zero
-        delta = 1e-8
-        for r,i in zip( poscar['rions'], range(len(poscar['rions'])) ):
-            r = A @ r
-            r = r * np.array(r>delta, dtype=int)
-            poscar['rions'][i] = r
-
-        # Change the rmode to Cartesian
-        poscar['rmode'] = 'Cartesian'
-
-        return poscar
-
-
-    def convert_toggle ( poscar:dict ) -> dict:
-        """
-        Return a copy of the poscar in the opposite position mode
-        """
-
-        poscar = deepcopy(poscar)
-
-        if poscar['rmode'] == 'Cartesian':
-            poscar = Base.convert_direct(poscar)
-        elif poscar['rmode'] == 'Direct':
-            poscar = Base.convert_cartesian(poscar)
-        else:
+        # Check that the modes are the same, otherwise, throw an error now
+        if poscar.mode[0].lower() != mode[0].lower():
             raise ValueError( 'Unrecognized position mode' )
+
+        # Verbose message
+        if verbose:
+            print( f'Applying selective dynamics {dimensions} to ions inside {lower} to {upper}' )
+
+        # Pass the parameters to the freeze method
+        # TODO: Extract this to its own method called select_box
+        lower = np.array(lower)
+        upper = np.array(upper)
+        dimensions = Ion.list_to_bools(dimensions)
+        s, t = 0, 0
+        for i, ion in enumerate(poscar.ions):
+            t += 1
+            if not( (lower <= ion.position).all() and (ion.position <= upper).all() ):
+                if overwrite_unspecified:
+                    poscar.ions[i].selective_dynamics = np.array([True]*3, dtype=bool)
+                continue
+            s += 1
+            poscar.ions[i].selective_dynamics = np.array(dimensions, dtype=bool)
+        if verbose:
+            print(f"Switched {s}/{t}")
+        poscar.selective_dynamics = True
+
+        # If converted, then convert once more
+        if converted:
+            poscar._toggle_mode()
+
+        # Write the modified poscar
+        poscar.to_file(output_path)
+
+class interpolate(Subcommand):
+    description = 'Linearly interpolate images for an NEB calculation from two POSCAR files'
+    parser = ArgumentParser()
+    parser.add_argument( 'file1', type=str, help='Input file 1' )
+    parser.add_argument( 'file2', type=str, help='Input file 2' )
+    parser.add_argument( '-i', '--images', type=int,
+                        help='Number of interpolated images to create', default=1 )
+    parser.add_argument( '-c', '--center', action="store_true",
+                        help='Center the POSCARS about center of mass (unused)' )
+
+    @staticmethod
+    def run(file1:str, file2:str, images:int=1, center:bool=False,
+            verbose:bool=False, no_write:bool=False):
+        # Load the anchors
+        poscar1 = Poscar.from_file(file1)
+        poscar2 = Poscar.from_file(file2)
+
+        # TODO: Check if the headers match
+
+        # Ensure that there are the same number of ions in each
+        if len(poscar1.ions) != len(poscar2.ions):
+            raise RuntimeError('Number of ions do not match!')
         
-        return poscar
+        # Ensure no ions cross the unit cell boundaries
+        for i, (ion1, ion2) in enumerate(zip(poscar1.ions, poscar2.ions)):
+            if (np.sign(ion1.position)*np.sign(ion2.position)).sum() != 3:
+                print(f"Warning: Ion {i} crossed boundary between anchors!")
 
+        # Template the output poscar image
+        image_template = deepcopy(poscar1)
 
-    def sd_box ( poscar:dict, begin:np.array, end:np.array, sddeg:list ) -> dict:
-        """
-        Define a 3D box, direct or in cartesian, and apply the chosen selective dynamics flags to all atoms within.
-        Returns a copy of the modified potcar dictionary.
-        """
+        # Disable selective dynamics in the output
+        image_template.selective_dynamics = False
 
-        # Create a copy of the poscar to work on
-        poscar = deepcopy(poscar)
-
-        # If sdynamics is already enabled, iterate in such a way as to not erase values for ions that don't meet criteria
-        if poscar['sdynam']:
-
-            # Create a new list of the associated selective dynamic degrees for eachion
-            sdionsNew = []
-
-            # For each ion inside the box apply the changed degrees, otherwise keep the original
-            for r, sd in zip( poscar['rions'], poscar['sdions'] ):
-                if np.sum( np.array( [r >= begin, r <= end], dtype=int ) ) == 6:
-                    sdionsNew.append( sddeg )
-                else:
-                    sdionsNew.append( sd )
-            poscar['sdions'] = sdionsNew
-
-        # If sdynamics is not enabled, enable it and allow full freedom for any ion that doesn't meet criteria
-        else:
-            poscar['sdynam'] = True
-            poscar['sdions'] = []
-
-            # For each ion inside the box apply the changed degrees, otherwise allow full freedoms
-            for ion in poscar['rions']:
-                if np.sum( np.array(ion >= begin, dtype=int) ) == 3 and np.sum( np.array(ion <= end, dtype=int) ) == 3:
-                    poscar['sdions'].append(sddeg)
-                else:
-                    poscar['sdions'].append( ['T', 'T', 'T'] )
-
-        return poscar
-
-    
-    # Translate atoms distance along given direction
-    def translate ( poscar:dict ) -> dict:
-        pass
-
-
-    # Rotate atoms around axis
-    def rotate ( poscar:dict ) -> dict:
-        pass
+        # Interpolate between ion positions and save to template
+        for i in range(images+2):
+            # Erase the existing ion data in the template
+            image_template.ions = []
+            # Get interpolated ion positions
+            for ion1, ion2 in zip(poscar1.ions, poscar2.ions):
+                new_ion = Ion()
+                new_ion.position = ion1.position + (ion2.position-ion1.position)/(images+1)*i
+                new_ion.species = ion1.species
+                image_template.ions.append(new_ion)
+            # Create output path
+            output_path = Path( ".", str(i).zfill(2), "POSCAR" )
+            # Write the file
+            image_template.to_file(output_path)
