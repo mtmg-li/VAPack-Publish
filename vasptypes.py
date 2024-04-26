@@ -31,14 +31,19 @@ class Ion(object):
         return np.array([ False if f=='F' else True for f in v ], dtype=bool)
 
 # For use in POSCAR type hinting
-Ions: TypeAlias = list[Ion]
+# Ions: TypeAlias = list[Ion]
+
+class Ions(list):
+    def __init__(self, ions:list, indices:list=[]):
+        self.indices = indices
+        super().__init__(ions)
 
 # Class for an INCAR since it's basically just a dictionary
 class Incar(dict):
 
     # Use the normal dictionary constructor
     # Add a comments list on the side
-    def __init__(self, d, comments:list=[]):
+    def __init__(self, d:dict, comments:list=[]):
         self.comments = comments
         super().__init__(d)
 
