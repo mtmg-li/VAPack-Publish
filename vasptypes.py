@@ -26,6 +26,12 @@ class Ion(object):
         self.selective_dynamics = np.array(self.selective_dynamics, dtype=bool)
         self.velocity = np.array(self.velocity, dtype=float)
 
+    def _apply_transformation(self, transform:np.array, tol:float=1e-8) -> None:
+        A = transform.reshape(3,3)
+        r = A @ self.position
+        r = r * np.array(r>tol, dtype=int)
+        self.position = r
+
     @staticmethod
     def list_to_bools(v):
         return np.array([ False if f=='F' else True for f in v ], dtype=bool)
@@ -168,13 +174,10 @@ class Poscar(object):
         # Create the transformation matrix
         A = self.lattice.transpose()
         Ainv = np.linalg.inv(A)
-
         # Convert all ion positions to fractions of the lattice vectors and round to zero
-        tol = 1e-8
+
         for i,ion in enumerate(self.ions):
-            r = Ainv @ ion.position
-            r = r * np.array(r>tol, dtype=int)
-            self.ions[i].position = r
+            self.ions[i]._apply_transformation(Ainv)
 
         # Change the mode string
         self.mode = "Direct"
@@ -184,18 +187,30 @@ class Poscar(object):
         if self.is_cartesian():
             raise RuntimeWarning('POSCAR is already in cartesian mode.')
         
-        # Create the transformation matrix
-        A = self.lattice.transpose()
-
         # Convert all ion positions to fractions of the lattice vectors and round to zero
-        tol = 1e-8
-        for i,ion in enumerate(self.ions):
-            r = A @ ion.position
-            r = r * np.array(r>tol, dtype=int)
-            self.ions[i].position = r
+        # Create the transformation matrix and tolerance
+        A = self.lattice.transpose()
+        for i, ion in enumerate(self.ions):
+            self.ions[i]._apply_transformation(A)
 
         # Change the mode string
         self.mode = "Cartesian"
+
+    def _constrain(self) -> None:
+        # Convert to direct
+        converted = False
+        if self.is_cartesian():
+            self._convert_to_direct()
+            converted = True
+
+        # If any direct mode coordinate exceeds +-1
+        # subtract the whole integer from that coordinate, keeping the fraction
+        for i, ion in enumerate(self.ions):
+            self.ions[i].position = ion.position - ion.position // 1
+
+        # Reconvert if necessary
+        if converted:
+            self._convert_to_cartesian()
 
     def is_cartesian(self) -> bool:
         return self.mode[0].lower() in ('c','k')
