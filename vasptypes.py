@@ -33,8 +33,8 @@ class Ion(object):
 # For use in POSCAR type hinting
 # Ions: TypeAlias = list[Ion]
 
-class Ions(list):
-    def __init__(self, ions:list, indices:list=[]):
+class Ions(list[Ion]):
+    def __init__(self, ions:list[Ion]=[], indices:list=[]):
         self.indices = indices
         super().__init__(ions)
 
