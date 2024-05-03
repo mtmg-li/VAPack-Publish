@@ -29,7 +29,7 @@ class Ion(object):
     def _apply_transformation(self, transform:np.array, tol:float=1e-8) -> None:
         A = transform.reshape(3,3)
         r = A @ self.position
-        r = r * np.array(r>tol, dtype=int)
+        r = r * np.array(np.abs(r)>tol, dtype=int)
         self.position = r
 
     @staticmethod
@@ -158,6 +158,9 @@ class Poscar(object):
         self.lattice_velocity = lattice_velocity
         self.mdextra = mdextra
 
+    def __str__(self):
+        return self.to_string()
+
     def _toggle_mode(self) -> None:
         if self.is_direct():
             self._convert_to_cartesian()
@@ -169,7 +172,8 @@ class Poscar(object):
     def _convert_to_direct(self) -> None:
         # Check to make sure it's not already direct
         if self.is_direct():
-            raise RuntimeWarning('POSCAR is already in direct mode.')
+            return
+            # raise RuntimeWarning('POSCAR is already in direct mode.')
         
         # Create the transformation matrix
         A = self.lattice.transpose()
@@ -185,7 +189,8 @@ class Poscar(object):
     def _convert_to_cartesian(self) -> None:
         # Check to make sure it's not already cartesian
         if self.is_cartesian():
-            raise RuntimeWarning('POSCAR is already in cartesian mode.')
+            return
+            # raise RuntimeWarning('POSCAR is already in cartesian mode.')
         
         # Convert all ion positions to fractions of the lattice vectors and round to zero
         # Create the transformation matrix and tolerance
