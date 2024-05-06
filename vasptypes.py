@@ -13,6 +13,9 @@ class Ion(object):
     Only has information that is immediately relevant to
     the ion itself. It has limited context of its container.
     """
+    # Note: Index is not included here since it strictly applies
+    # to the relative placement of the entry in the POSCAR file.
+    # Indices are maintained where ion lists are relevant.
     def __init__(self, position:np.array=np.zeros(3),
                 species:str="H",
                 selective_dynamics:np.array=np.ones(3,dtype=bool),
@@ -60,9 +63,7 @@ class Ion(object):
                 case _: RuntimeError('Bad selective dynamics character on ion!')
         return np.array(l, dtype=bool)
 
-# For use in POSCAR type hinting
-# Ions: TypeAlias = list[Ion]
-
+# For use in POSCAR type hinting and ion portability
 class Ions(list[Ion]):
     def __init__(self, ions:list[Ion]=[], indices:list=[]):
         self.indices = indices
