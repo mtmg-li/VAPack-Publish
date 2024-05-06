@@ -9,11 +9,17 @@ import re
 # a POSCAR.
 class Ion(object):
     """
+    An atom or ion contained within a POSCAR.
+    Only has information that is immediately relevant to
+    the ion itself. It has limited context of its container.
     """
     def __init__(self, position:np.array=np.zeros(3),
                 species:str="H",
                 selective_dynamics:np.array=np.ones(3,dtype=bool),
                 velocity:np.array=np.zeros(3)):
+        """
+        Initialize an oject to contain ion information.
+        """
         self.position = position
         self.species = species
         self.selective_dynamics = selective_dynamics
@@ -21,12 +27,18 @@ class Ion(object):
         self._reinforce_types()
 
     def _reinforce_types(self):
+        """
+        Check the types and ensure they are consistent with expectations.
+        """
         self.position = np.array(self.position, dtype=float)
         self.species = str(self.species)
         self.selective_dynamics = np.array(self.selective_dynamics, dtype=bool)
         self.velocity = np.array(self.velocity, dtype=float)
 
     def _apply_transformation(self, transform:np.array, tol:float=1e-8) -> None:
+        """
+        Given transformation matrix (3x3), transform the coordinates of the ion.
+        """
         A = transform.reshape(3,3)
         r = A @ self.position
         r = r * np.array(np.abs(r)>tol, dtype=int)
@@ -34,7 +46,19 @@ class Ion(object):
 
     @staticmethod
     def list_to_bools(v):
-        return np.array([ False if f=='F' else True for f in v ], dtype=bool)
+        """
+        Method to convert selective dynamics flags from strings to bools.
+        Enforces expected characters and length.
+        """
+        if len(v) != 3:
+            raise RuntimeError('Bad selective dynamics length on ion!')
+        l = []
+        for i in v:
+            match i:
+                case 'T': l.append(True)
+                case 'F': l.append(False)
+                case _: RuntimeError('Bad selective dynamics character on ion!')
+        return np.array(l, dtype=bool)
 
 # For use in POSCAR type hinting
 # Ions: TypeAlias = list[Ion]
@@ -169,7 +193,8 @@ class Poscar(object):
     
     def _reconcile_ions(self):
         """
-        Count the population of each species of ions.
+        Count the population of each species of ions and update
+        the self contained species list.
         This is useful for ensuring agreement between ion counts
         and species populations since it's more intuitive to edit
         ions directly.
@@ -247,7 +272,7 @@ class Poscar(object):
             converted = True
 
         # If any direct mode coordinate exceeds +-1
-        # subtract the whole integer from that coordinate, keeping the fraction
+        # subtract the floor from that coordinate, keeping the fraction
         for i, ion in enumerate(self.ions):
             self.ions[i].position = ion.position - ion.position // 1
 
