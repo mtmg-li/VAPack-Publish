@@ -64,8 +64,11 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
 
     # From the selected ion, find neighbors in range
     jumps = 0
+    first_hydrogen = True
     for i, selected_ion in zip(selection.indices, selection):
-        if hydrogen_termination and selected_ion.species == "H":
+        if hydrogen_termination \
+        and not( first_hydrogen ) \
+        and selected_ion.species == "H":
             continue
         if not(extent is None) and jumps > extent:
             break
@@ -86,5 +89,7 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
             selection.append(poscar.ions[j])
             selection.indices.append(j)
         jumps += 1
+        if first_hydrogen:
+            first_hydrogen = False
 
     return selection
