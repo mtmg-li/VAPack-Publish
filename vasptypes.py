@@ -200,6 +200,7 @@ class Poscar(object):
         and species populations since it's more intuitive to edit
         ions directly.
         """
+        # Make sure the species list is in order
         species = {}
         for ion in self.ions:
             isp = ion.species.lower().capitalize()
@@ -208,6 +209,12 @@ class Poscar(object):
             else:
                 species[isp] = 1
         self.species = species
+        # Make sure the ions are sorted properly
+        ions = []
+        for sp in self.species.keys():
+            mask = [ i.species==sp for i in self.ions ]
+            ions += list( it.compress(self.ions, mask) )
+        self.ions = ions
 
     def _toggle_mode(self) -> None:
         """
@@ -445,3 +452,19 @@ class Poscar(object):
         """
         potcar = Potcar(self.species.keys(), potcar_dir)
         potcar.generate_file(output)
+
+    def edit_ions(self, ions:Ions):
+        """
+        Overwrite matching ions in the POSCAR by index.
+        """
+        for i, ion in zip(ions.indices, ions):
+            self.ions[i] = ion
+        self._reconcile_ions()
+
+    def remove_ions(self, ions:Ions):
+        """
+        Remove the ions provided in the list according to index.
+        """
+        for i in ions.indices:
+            self.ions.pop(i)
+        self._reconcile_ions()
