@@ -63,7 +63,7 @@ def center_around(poscar:Poscar, index:int) -> Poscar:
     return poscar_cp
 
 def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
-                 extent:int=None, species_blacklist:list[str]=[],\
+                 extent:int=np.inf, species_blacklist:list[str]=[],\
                  index_blacklist:list[int]=[], hydrogen_termination:bool=True):
 
     species_blacklist = [ s.lower() for s in species_blacklist ]
@@ -71,17 +71,17 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
     # Initial quantities
     jump_distance2 = jump_distance**2
     selection = Ions([poscar.ions[start_index]], [start_index])
+    jumps = [0]
 
     # From the selected ion, find neighbors in range
-    jumps = 0
     first_hydrogen = True
-    for i, selected_ion in zip(selection.indices, selection):
+    for i, selected_ion, jump in zip(selection.indices, selection, jumps):
+        if jump >= extent:
+            continue
         if hydrogen_termination \
         and not( first_hydrogen ) \
         and selected_ion.species == "H":
             continue
-        if not(extent is None) and jumps > extent:
-            break
         poscar_cp = center_around(poscar, i)
         poscar_cp._convert_to_cartesian()
         poscar_cp_enum = enumerate(poscar_cp.ions)
@@ -98,7 +98,9 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
             # Append a copy of the original ion
             selection.append(poscar.ions[j])
             selection.indices.append(j)
-        jumps += 1
+            # Record how many jumps it took to get here
+            jumps.append(jump+1)
+
         if first_hydrogen:
             first_hydrogen = False
 
