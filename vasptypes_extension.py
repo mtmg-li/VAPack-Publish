@@ -2,20 +2,30 @@ from vasptypes import Poscar, Ions
 import numpy as np
 from copy import deepcopy
 
+def translate(ions:Ions, r=np.array(float)) -> Ions:
+    """
+    Translate the given selection along the x, y, or z dimension.
+    """
+    ions_t = deepcopy(ions)
+    for i,_ in zip(ions.indices, ions):
+        ions_t[i].position += r
+    return ions_t
+
 def box_select(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None,\
                z_range:list[float]=None, mode:str=None) -> Ions:
     # If mode was not set, grab it automatically
-    mode = poscar.mode if mode is None else mode
+    poscar_cp = deepcopy(poscar)
+    mode = poscar_cp.mode if mode is None else mode
 
     # Convert the POSCAR to the correct mode if necessary
     converted = False
-    if poscar.mode[0].lower() != mode[0].lower():
-        poscar._toggle_mode()
+    if poscar_cp.mode[0].lower() != mode[0].lower():
+        poscar_cp._toggle_mode()
         converted = True
     
     # Add ions that reside within box to selection list
     selection, indices = [], []
-    for i, ion in enumerate(poscar.ions):
+    for i, ion in enumerate(poscar_cp.ions):
         if  ( x_range is None or (x_range[0] <= ion.position[0] <= x_range[1]) )\
         and ( y_range is None or (y_range[0] <= ion.position[1] <= y_range[1]) )\
         and ( z_range is None or (z_range[0] <= ion.position[2] <= z_range[1]) ):
@@ -24,7 +34,7 @@ def box_select(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None
 
     # Reconvert the POSCAR if necessary
     if converted:
-        poscar._toggle_mode()
+        poscar_cp._toggle_mode()
         
     return Ions(selection, indices)
 
