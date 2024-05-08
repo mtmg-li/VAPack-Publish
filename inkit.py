@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from sys import argv
 from argparse import ArgumentParser
 from pathlib import Path
@@ -95,7 +97,7 @@ def execute(arguments):
 
     parser.add_argument('source', nargs='+', type=str, help='Source files for INCAR templates')
     parser.add_argument('-o','--output', type=str, default='INCAR', help='Output file directory and name')
-    parser.add_argument('-d', '--templatedir', type=str, default='templates', help='Template directory')
+    parser.add_argument('-d', '--templatedir', type=str, default='templates/yaml', help='Template directory')
     parser.add_argument('-s', '--system', type=str, help='System name')
 
     args = parser.parse_args(arguments)
