@@ -1,19 +1,28 @@
 from pathlib import Path
 import numpy as np
 import itertools as it
-from typing import TypeAlias
 from ast import literal_eval
+import re
 
 # Storage of position mode (direct or cartesian) is _only_ done in the POSCAR.
 # The units on position of an ion makes no sense unless taken into context with
 # a POSCAR.
 class Ion(object):
     """
+    An atom or ion contained within a POSCAR.
+    Only has information that is immediately relevant to
+    the ion itself. It has limited context of its container.
     """
+    # Note: Index is not included here since it strictly applies
+    # to the relative placement of the entry in the POSCAR file.
+    # Indices are maintained where ion lists are relevant.
     def __init__(self, position:np.array=np.zeros(3),
                 species:str="H",
                 selective_dynamics:np.array=np.ones(3,dtype=bool),
                 velocity:np.array=np.zeros(3)):
+        """
+        Initialize an oject to contain ion information.
+        """
         self.position = position
         self.species = species
         self.selective_dynamics = selective_dynamics
@@ -21,24 +30,51 @@ class Ion(object):
         self._reinforce_types()
 
     def _reinforce_types(self):
+        """
+        Check the types and ensure they are consistent with expectations.
+        """
         self.position = np.array(self.position, dtype=float)
         self.species = str(self.species)
         self.selective_dynamics = np.array(self.selective_dynamics, dtype=bool)
         self.velocity = np.array(self.velocity, dtype=float)
 
+    def _apply_transformation(self, transform:np.array, tol:float=1e-8) -> None:
+        """
+        Given transformation matrix (3x3), transform the coordinates of the ion.
+        """
+        A = transform.reshape(3,3)
+        r = A @ self.position
+        r = r * np.array(np.abs(r)>tol, dtype=int)
+        self.position = r
+
     @staticmethod
     def list_to_bools(v):
-        return np.array([ False if f=='F' else True for f in v ], dtype=bool)
+        """
+        Method to convert selective dynamics flags from strings to bools.
+        Enforces expected characters and length.
+        """
+        if len(v) != 3:
+            raise RuntimeError('Bad selective dynamics length on ion!')
+        l = []
+        for i in v:
+            match i:
+                case 'T': l.append(True)
+                case 'F': l.append(False)
+                case _: RuntimeError('Bad selective dynamics character on ion!')
+        return np.array(l, dtype=bool)
 
-# For use in POSCAR type hinting
-Ions: TypeAlias = list[Ion]
+# For use in POSCAR type hinting and ion portability
+class Ions(list[Ion]):
+    def __init__(self, ions:list[Ion]=[], indices:list=[]):
+        self.indices = indices
+        super().__init__(ions)
 
 # Class for an INCAR since it's basically just a dictionary
 class Incar(dict):
 
     # Use the normal dictionary constructor
     # Add a comments list on the side
-    def __init__(self, d, comments:list=[]):
+    def __init__(self, d:dict, comments:list=[]):
         self.comments = comments
         super().__init__(d)
 
@@ -137,6 +173,9 @@ class Poscar(object):
                  lattice:np.array=np.identity(3,dtype=float), species:dict= {},
                  selective_dynamics:bool=False, mode:str='Direct', ions:Ions=[],
                  lattice_velocity:np.array=np.zeros((3,3)), mdextra:str=""):
+        """
+        Initialize a POSCAR from argument data only
+        """
         self.comment = comment
         self.scale = scale
         self.lattice = lattice
@@ -147,7 +186,40 @@ class Poscar(object):
         self.lattice_velocity = lattice_velocity
         self.mdextra = mdextra
 
+    def __str__(self):
+        """
+        Automatic string conversion
+        """
+        return self.to_string()
+    
+    def _reconcile_ions(self):
+        """
+        Count the population of each species of ions and update
+        the self contained species list.
+        This is useful for ensuring agreement between ion counts
+        and species populations since it's more intuitive to edit
+        ions directly.
+        """
+        # Make sure the species list is in order
+        species = {}
+        for ion in self.ions:
+            isp = ion.species.lower().capitalize()
+            if species.__contains__(isp):
+                species[isp] += 1
+            else:
+                species[isp] = 1
+        self.species = species
+        # Make sure the ions are sorted properly
+        ions = []
+        for sp in self.species.keys():
+            mask = [ i.species==sp for i in self.ions ]
+            ions += list( it.compress(self.ions, mask) )
+        self.ions = ions
+
     def _toggle_mode(self) -> None:
+        """
+        Change the position mode from direct to cartesian or vice-versa.
+        """
         if self.is_direct():
             self._convert_to_cartesian()
         elif self.is_cartesian():
@@ -155,51 +227,84 @@ class Poscar(object):
         else:
             raise RuntimeError('Unrecognized mode descriptor when attempting to toggle!')
 
-    def _convert_to_direct(self) -> None:
+    def _convert_to_direct(self, error=False) -> None:
+        """
+        Convert the mode to direct.
+        Optionally raise a RuntimeError if it is already direct.
+        """
         # Check to make sure it's not already direct
         if self.is_direct():
-            raise RuntimeWarning('POSCAR is already in direct mode.')
+            if error:
+                raise RuntimeError('POSCAR is already in direct mode.')
+            return
         
         # Create the transformation matrix
         A = self.lattice.transpose()
         Ainv = np.linalg.inv(A)
-
         # Convert all ion positions to fractions of the lattice vectors and round to zero
-        tol = 1e-8
-        for i,ion in enumerate(self.ions):
-            r = Ainv @ ion.position
-            r = r * np.array(r>tol, dtype=int)
-            self.ions[i].position = r
+
+        for i,_ in enumerate(self.ions):
+            self.ions[i]._apply_transformation(Ainv)
 
         # Change the mode string
         self.mode = "Direct"
 
-    def _convert_to_cartesian(self) -> None:
+    def _convert_to_cartesian(self, error=False) -> None:
+        """
+        Convert the mode to cartesian.
+        Optionally raise a runtimeError if it is already cartesian.
+        """
         # Check to make sure it's not already cartesian
         if self.is_cartesian():
-            raise RuntimeWarning('POSCAR is already in cartesian mode.')
+            if error:
+                raise RuntimeError('POSCAR is already in cartesian mode.')
+            return
         
-        # Create the transformation matrix
-        A = self.lattice.transpose()
-
         # Convert all ion positions to fractions of the lattice vectors and round to zero
-        tol = 1e-8
-        for i,ion in enumerate(self.ions):
-            r = A @ ion.position
-            r = r * np.array(r>tol, dtype=int)
-            self.ions[i].position = r
+        # Create the transformation matrix and tolerance
+        A = self.lattice.transpose()
+        for i, ion in enumerate(self.ions):
+            self.ions[i]._apply_transformation(A)
 
         # Change the mode string
         self.mode = "Cartesian"
 
+    def _constrain(self) -> None:
+        """
+        Make sure all ions lie within boundary of cell.
+        """
+        # Convert to direct
+        converted = False
+        if self.is_cartesian():
+            self._convert_to_direct()
+            converted = True
+
+        # If any direct mode coordinate exceeds +-1
+        # subtract the floor from that coordinate, keeping the fraction
+        for i, ion in enumerate(self.ions):
+            self.ions[i].position = ion.position - ion.position // 1
+
+        # Reconvert if necessary
+        if converted:
+            self._convert_to_cartesian()
+
     def is_cartesian(self) -> bool:
+        """
+        Return true if position mode is cartesian.
+        """
         return self.mode[0].lower() in ('c','k')
     
     def is_direct(self) -> bool:
+        """
+        Return true if position mode is direct.
+        """
         return self.mode[0].lower() == 'd'
 
     @classmethod
     def from_file(cls, poscar_file:str):
+        """
+        Return a POSCAR object with data matching the provided poscar_file.
+        """
         file_path = Path(poscar_file)
 
         with file_path.open('r') as f:
@@ -224,19 +329,21 @@ class Poscar(object):
             s_lattice = vec.reshape((3,3))
 
             # Mandatory check, species names
+            # Enforce capitalization
             line = f.readline()
             species = []
             if line.replace(' ','').strip().isalpha():
-                species = line.split()
+                species = [sp.lower().capitalize() for sp in line.split() ]
                 line = f.readline()
             
             # Read ions per species
             counts = line.strip().split()
+            # Handle the optional case of no species specified
             if len(species) == 0:
                 species = ['H'+str(i+1) for i in range(len(counts))]
             elif len(species) != len(counts):
                 raise RuntimeError('Mismatch between species and ion counts!')
-            s_species = {str(sp):int(ct) for sp, ct in zip(species,counts)}
+            s_species = {str(sp.lower().capitalize()):int(ct) for sp, ct in zip(species,counts)}
 
             # Optional check, selective dynamics
             line = f.readline()
@@ -291,7 +398,11 @@ class Poscar(object):
         
         # Write the species names
         line = ''
-        line += ' '.join( [f"{sp:>6s}" for sp in self.species.keys()] ) + '\n'
+        # If all the species are placeholder H0, H1, H2, ..., then skip writing this line
+        if False in [ bool(re.match( r"H[0-9]+", sp )) for sp in self.species.keys() ]:
+            line += ' '.join( [f"{sp:>6s}" for sp in self.species.keys()] ) + '\n'
+        else:
+            line = ''
         poscar_string += line
 
         # Write species numbers
@@ -319,7 +430,7 @@ class Poscar(object):
     
     def to_file(self, file:str, parents=True) -> None:
         """
-        Write the POSCAR to the given file
+        Write the POSCAR to the given file.
         """
         file = Path(file)
         parent = file.parent
@@ -329,12 +440,31 @@ class Poscar(object):
         
     def generate_potcar_str(self, potcar_dir:str='.') -> str:
         """
-        Generate a POTCAR for the current POSCAR
+        Generate a POTCAR for the current POSCAR.
         """
         # Define pseudopotential path
         potcar = Potcar(self.species.keys(), potcar_dir)
         return potcar.generate_string()
     
     def generate_potcar_file(self, potcar_dir:str='.', output:str='POTCAR', parents=True) -> None:
+        """
+        Generate and write a POTCAR for the current POSCAR.
+        """
         potcar = Potcar(self.species.keys(), potcar_dir)
         potcar.generate_file(output)
+
+    def edit_ions(self, ions:Ions):
+        """
+        Overwrite matching ions in the POSCAR by index.
+        """
+        for i, ion in zip(ions.indices, ions):
+            self.ions[i] = ion
+        self._reconcile_ions()
+
+    def remove_ions(self, ions:Ions):
+        """
+        Remove the ions provided in the list according to index.
+        """
+        for i in ions.indices:
+            self.ions.pop(i)
+        self._reconcile_ions()
