@@ -265,9 +265,11 @@ class interpolate(Subcommand):
                         help='Number of interpolated images to create', default=1 )
     parser.add_argument( '-c', '--center', action="store_true",
                         help='Center the POSCARS about center of mass (unused)' )
+    parser.add_argument( '-S', '--selective_dynamics', action='store_true')
 
     @staticmethod
     def run(file1:str, file2:str, images:int=1, center:bool=False,
+            selective_dynamics:bool=False,
             verbose:bool=False, no_write:bool=False):
         # Load the anchors
         poscar1 = Poscar.from_file(file1)
@@ -287,8 +289,9 @@ class interpolate(Subcommand):
         # Template the output poscar image
         image_template = deepcopy(poscar1)
 
-        # Disable selective dynamics in the output
-        image_template.selective_dynamics = False
+        # Disable selective dynamics unless told not to change it
+        if not(selective_dynamics):
+            image_template.selective_dynamics = False
 
         # Interpolate between ion positions and save to template
         for i in range(images+2):
@@ -299,6 +302,11 @@ class interpolate(Subcommand):
                 new_ion = Ion()
                 new_ion.position = ion1.position + (ion2.position-ion1.position)/(images+1)*i
                 new_ion.species = ion1.species
+                if selective_dynamics:
+                    if not(np.array_equal(ion1.selective_dynamics, ion2.selective_dynamics)):
+                        print(f'Ion {i} selective dynamics disagreed. Defaulting to all TRUE.')
+                    else:
+                        new_ion.selective_dynamics = ion1.selective_dynamics
                 image_template.ions.append(new_ion)
             # Create output path
             output_path = Path( ".", str(i).zfill(2), "POSCAR" )
