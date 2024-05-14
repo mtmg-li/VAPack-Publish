@@ -92,6 +92,8 @@ class Incar(dict):
     # Use the normal dictionary constructor
     # Add a comments list on the side
     def __init__(self, tags:dict={}, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
+        self.key_length = 8
+        self.value_length = 8
         # Dictionary of sections with lists of tags within
         self.sections = sections
         # Dictionary of inline comments and their respective tags
@@ -147,7 +149,7 @@ class Incar(dict):
     def remove(self, key:str) -> None:
         return self.__delitem__(key)
 
-    def __section_str__(self, section:str, key_len, value_len) -> str:
+    def __section_str__(self, section:str) -> str:
         # Get the title first
         formatted_string = f"\n# {section}\n\n"
         # Then the solitary comments in one block
@@ -157,15 +159,15 @@ class Incar(dict):
         formatted_string += '\n' if len(local_solo_comments) > 0 else ''
         # Then the keys, values, and inline comments
         for key in self.sections[section]:
-            formatted_string += self.__tag_str__(key, key_len, value_len)
+            formatted_string += self.__tag_str__(key)
         return formatted_string
     
-    def __tag_str__(self, key:str, key_len, value_len) -> str:
-        formatted_string = f"{key:<{key_len}} = "
+    def __tag_str__(self, key:str) -> str:
+        formatted_string = f"{key:<{self.key_length}} = "
         value = self[key]
         if type(value) is list:
             value = ' '.join( ( str(i) for i in value ) )
-        formatted_string += f"{str(value):<{value_len}}"
+        formatted_string += f"{str(value):<{self.value_length}}"
         try:
             formatted_string += f" ! {self.inline_comments[key]}"
         except KeyError:
@@ -184,17 +186,15 @@ class Incar(dict):
         return formatted_string.strip()
     
     def to_rich_string(self) -> str:
-        key_len = 8
-        value_len = 8
         formatted_string = ''
         # Get any tags that aren't in a section first
         sectioned_tag_set = set(it.chain.from_iterable( (s for s in self.sections.values()) ))
         orphaned_tags = list( set(self.keys()) - sectioned_tag_set )
         for key in orphaned_tags:
-            formatted_string += self.__tag_str__(key, key_len, value_len)
+            formatted_string += self.__tag_str__(key)
         # Format for each section
         for section in self.sections:
-            formatted_string += self.__section_str__(section, key_len, value_len)
+            formatted_string += self.__section_str__(section)
         
         return formatted_string.strip()
 
