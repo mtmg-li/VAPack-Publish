@@ -7,7 +7,7 @@ def translate(ions:Ions, r=np.array(float)) -> Ions:
     Translate the given selection along the x, y, or z dimension.
     """
     ions_t = deepcopy(ions)
-    for i,_ in zip(ions.indices, ions):
+    for i, _ in enumerate(ions_t):
         ions_t[i].position += r
     return ions_t
 
@@ -75,7 +75,7 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
 
     # From the selected ion, find neighbors in range
     first_hydrogen = True
-    for i, selected_ion, jump in zip(selection.indices, selection, jumps):
+    for i, selected_ion, jump in zip(selection, jumps):
         if jump >= extent:
             continue
         if hydrogen_termination \
