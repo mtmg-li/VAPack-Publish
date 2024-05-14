@@ -138,15 +138,37 @@ class Incar(dict):
         return formatted_string + '\n'
 
     def __str__(self) -> str:
+        return self.to_rich_string()
+    
+    def to_simple_string(self) -> str:
+        formatted_string = ''
+        for key, value in self.items():
+            if type(value) is list:
+                value = ' '.join( ( str(i) for i in value ) )
+            formatted_string += f'{key} = {value}\n'
+        return formatted_string.strip()
+    
+    def to_rich_string(self) -> str:
         key_len = 8
         value_len = 8
         formatted_string = ''
-        
         # Format for each section
         for section in self.sections:
             formatted_string += self.__section_str__(section, key_len, value_len)
-
         return formatted_string.strip()
+
+    def to_file(self, file:str, parents=True, simple=False) -> None:
+        """
+        Write the INCAR to the given file.
+        """
+        file = Path(file)
+        parent = file.parent
+        Path.mkdir(parent, parents=parents, exist_ok=True)
+        with file.open('w') as f:
+            if simple:
+                f.write(self.to_simple_string())
+            else:
+                f.write(self.to_rich_string())
 
     @classmethod
     def from_file(cls, input:str="INCAR"):
