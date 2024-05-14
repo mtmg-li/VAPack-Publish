@@ -69,58 +69,133 @@ class Ions(list[Ion]):
         self.indices = indices
         super().__init__(ions)
 
+    def __iter__(self):
+        for i, ion in zip(self.indices, super().__iter__()):
+            yield i, ion
+
+    def append(self, l:Ion, i:int):
+        super().append(l)
+        self.indices.append(i)
+
+    def pop(self, index:int=-1):
+        super().pop(index)
+        self.indices.pop(index)
+
 # Class for an INCAR since it's basically just a dictionary
 class Incar(dict):
 
     # Use the normal dictionary constructor
     # Add a comments list on the side
-    def __init__(self, d:dict, comments:list=[]):
-        self.comments = comments
-        super().__init__(d)
+    def __init__(self, tags:dict, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
+        self.sections = sections
+        self.inline_comments = inline_comments
+        self.solo_comments = solo_comments
+        super().__init__(tags)
+
+    def __section_str__(self, section:str, key_len, value_len) -> str:
+        # Get the title first
+        if not( section.lower() == 'none'):
+            formatted_string = f"\n# {section}\n\n"
+        else:
+            formatted_string = ''
+        # Then the solitary comments in one block
+        local_solo_comments = [s[0] for s in self.solo_comments if s[1] == section]
+        for comment in local_solo_comments:
+            formatted_string += f"! {comment}\n"
+        formatted_string += '\n' if len(local_solo_comments) > 0 else ''
+        # Then the keys, values, and inline comments
+        for key in self.sections[section]:
+            formatted_string += self.__tagline_str__(key, key_len, value_len)
+        return formatted_string
+    
+    def __tagline_str__(self, key:str, key_len, value_len) -> str:
+        formatted_string = f"{key:<{key_len}} = "
+        value = self[key]
+        if type(value) is list:
+            value = ' '.join(value)
+        formatted_string += f"{value:<{value_len}}"
+        try:
+            formatted_string += f" ! {self.inline_comments[key]}"
+        except KeyError:
+            pass
+        return formatted_string + '\n'
+
+    def __str__(self) -> str:
+        key_len = 12
+        value_len = 12
+        formatted_string = ''
+        
+        # Format for each section
+        for section in self.sections:
+            formatted_string += self.__section_str__(section, key_len, value_len)
+
+        return formatted_string.strip()
 
     @classmethod
     def from_file(cls, input:str="INCAR"):
         input_path = Path(input)
-        incar_dict = {}
-        comment_list = []
+        # A dictionary of all the VASP tags
+        tags = {}
+        # Dictionary of sections with lists of tags within
+        sections = {}
+        # Dictionary of inline comments and their respective tags
+        inline_comments = {}
+        # List of solitary comments and their sections
+        solo_comments = []
 
         with input_path.open('r') as incar_file:
             incar_text = incar_file.readlines()
+            current_section = 'None'
             for line in incar_text:
                 line = line.strip()
-                # Line formatting sanity checks
+                # Skip empty lines
                 if len(line) == 0:
                     continue
-                if line[0] in ('#','!'):
-                    continue
-                if not('=' in line):
-                    continue
-                # Retrieve values without extra whitespace
-                key, value = [i.strip() for i in line.split('=',maxsplit=1)]
-                comment = ''
-                # Determine if there are additional comments after the values
-                if '!' in value or '#' in value:
-                    comment_start = np.array([value.find('!'), value.find('#')])
-                    comment_start *= -1 if -1 in comment_start else 1
-                    comment_start = np.abs( comment_start.min() )
-                    comment = value[comment_start+1:].strip()
-                    value = value[:comment_start].strip()
-                # Make sure the key and value aren't blank
-                if len(key) == 0 or len(value) == 0:
-                    continue
-                # Evaluate the value string to cast as the appropriate type
-                # Defaults to original string in event of failure
-                try:
-                    value = literal_eval(value)
-                except ValueError:
-                    pass
-                except SyntaxError:
-                    pass
-                # Modify the return dictionary and list
-                incar_dict[str(key)] = value
-                comment_list.append(comment)
+                # Error on malformed lines
+                if not( line[0] in ('#','!') ) and not('=' in line):
+                    raise RuntimeError(f'Malformed INCAR tag: {line}')
+                
+                # Determine if this is a section header, solitary comment,
+                # or tag (optionally with inline comment).
+                # Test the first character to determine the type of line
+                match line[0]:
+                    case '#':
+                        # Format the section name to something consistent
+                        current_section = line[1:].strip().capitalize()
+                    case '!':
+                        comment = line[1:].strip()
+                        solo_comments.append( (comment, current_section) )
+                    case _:
+                        key, value = (s.strip() for s in line.split('=', maxsplit=1))
+                        # Test if there is an inline comment and save it
+                        if '!' in value or '#' in value:
+                            comment_start = np.array([value.find('!'), value.find('#')])
+                            comment_start *= -1 if -1 in comment_start else 1
+                            comment_start = np.abs( comment_start.min() )
+                            comment = value[comment_start+1:].strip()
+                            value = value[:comment_start].strip()
+                            inline_comments[key] = comment
+                        try:
+                            # If there are spaces, parse it out as a list
+                            if ' ' in value:
+                                value = [literal_eval(v) for v in value.split(' ') ]
+                            # Otherwise, parse it as a single value
+                            else:
+                                value = literal_eval(value)
+                        # If literal evaluation fails, leave it as a string
+                        except ValueError:
+                            pass
+                        except SyntaxError:
+                            pass
+                        # Add the tag to the dictionary
+                        tags[key] = value
+                        # If the section hasn't been added, add it
+                        if not( current_section in sections.keys() ):
+                            sections[current_section] = []
+                        # Add the key to its section, create section if it doesn't exist
+                        sections[current_section].append(key)
         
-        return cls(incar_dict, comment_list)
+        return cls(tags, sections, inline_comments, solo_comments)
     
 # Class for containing POTCAR info
 # Does not store POTCAR string, but can create it
@@ -361,16 +436,16 @@ class Poscar(object):
                 raise RuntimeError('Unknown position mode')
             
             # Read in ion 
-            s_ions = []
+            s_ions = Ions()
             ions = it.chain.from_iterable([ [sp]*c for sp, c in s_species.items() ])
-            for sp in ions:
+            for i, sp in enumerate(ions):
                 line = f.readline().split()
                 r = np.array(line[0:3], dtype=float)
                 sd = ['True']*3
                 if s_selective_dynamics:
                     sd = np.array([ False if f=='F' else True for f in line[3:6]], dtype=bool)
                 v = np.zeros(3)
-                s_ions.append(Ion(r, sp, sd, v))
+                s_ions.append(Ion(r, sp, sd, v), i)
 
             # Leave velocity as zero
             # Leave mdextra as empty
@@ -457,7 +532,7 @@ class Poscar(object):
         """
         Overwrite matching ions in the POSCAR by index.
         """
-        for i, ion in zip(ions.indices, ions):
+        for i, ion in ions:
             self.ions[i] = ion
         self._reconcile_ions()
 
@@ -465,6 +540,6 @@ class Poscar(object):
         """
         Remove the ions provided in the list according to index.
         """
-        for i in ions.indices:
+        for i, _ in ions:
             self.ions.pop(i)
         self._reconcile_ions()

@@ -1,9 +1,8 @@
 from vasptypes import Ion, Poscar, Incar, Potcar
 import vasptypes_extension as vte
-from argparse import Namespace
 from pathlib import Path
 import numpy as np
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from copy import deepcopy
 
 # Notes to whoever attempts to maintain this:
