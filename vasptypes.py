@@ -103,11 +103,28 @@ class Incar(dict):
 
     # Overwrite normal bitwise Or behavior
     def __or__(self, b):
+        # TODO: Handle case where key is placed in different sections
         tags = dict(self) | dict(b)
         sections = self.sections | b.sections
         inline_comments = self.inline_comments | b.inline_comments
         solo_comments = self.solo_comments + b.solo_comments
         return Incar(tags, sections, inline_comments, solo_comments)
+    
+    def __delitem__(self, key:str) -> None:
+        # Delete an inline comment if it exists
+        try:
+            self.inline_comments.__delitem__(key)
+        except KeyError:
+            pass
+        # Delete the entry from any sections
+        for k,v in self.sections.items():
+            if key in v:
+                self.sections[k].remove(key)
+        # Delete the entry in the dictionary
+        return super().__delitem__(key)
+    
+    def remove(self, key:str) -> None:
+        return self.__delitem__(key)
 
     def __section_str__(self, section:str, key_len, value_len) -> str:
         # Get the title first
@@ -223,6 +240,11 @@ class Incar(dict):
                         except SyntaxError:
                             pass
                         # Add the tag to the dictionary
+                        if key in tags.keys():
+                            print(f'Warning: Key "{key}" appears more than once!')
+                            for k, v in sections.items():
+                                if key in v:
+                                    sections[k].remove(key)
                         tags[key] = value
                         # If the section hasn't been added, add it
                         if not( current_section in sections.keys() ):
