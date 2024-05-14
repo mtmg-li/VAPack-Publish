@@ -91,7 +91,7 @@ class Incar(dict):
 
     # Use the normal dictionary constructor
     # Add a comments list on the side
-    def __init__(self, tags:dict, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
+    def __init__(self, tags:dict={}, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
         # Dictionary of sections with lists of tags within
         self.sections = sections
         # Dictionary of inline comments and their respective tags
@@ -99,7 +99,7 @@ class Incar(dict):
         # List of solitary comments and their sections
         self.solo_comments = solo_comments
         # A dictionary of all the VASP tags
-        super().__init__(tags)
+        return super().__init__(tags)
 
     # Overwrite normal bitwise Or behavior
     def __or__(self, b):
@@ -109,6 +109,16 @@ class Incar(dict):
         inline_comments = self.inline_comments | b.inline_comments
         solo_comments = self.solo_comments + b.solo_comments
         return Incar(tags, sections, inline_comments, solo_comments)
+    
+    # In-place bitwise Or
+    def __ior__(self, b):
+        self.sections |= b.sections
+        self.inline_comments |= b.inline_comments
+        self.solo_comments += b.solo_comments
+        return super().__ior__(b)
+
+    def update(self, b):
+        self.__ior__(b)
     
     def __delitem__(self, key:str) -> None:
         # Delete an inline comment if it exists
@@ -169,9 +179,15 @@ class Incar(dict):
         key_len = 8
         value_len = 8
         formatted_string = ''
+        # Get any tags that aren't in a section first
+        sectioned_tag_set = set(it.chain.from_iterable( (s for s in self.sections.values()) ))
+        orphaned_tags = list( set(self.keys()) - sectioned_tag_set )
+        for key in orphaned_tags:
+            formatted_string += self.__tag_str__(key, key_len, value_len)
         # Format for each section
         for section in self.sections:
             formatted_string += self.__section_str__(section, key_len, value_len)
+        
         return formatted_string.strip()
 
     def to_file(self, file:str, parents=True, simple=False) -> None:
@@ -250,7 +266,9 @@ class Incar(dict):
                         if not( current_section in sections.keys() ):
                             sections[current_section] = []
                         # Add the key to its section, create section if it doesn't exist
-                        sections[current_section].append(key)
+                        # Skip if it is None
+                        if current_section != 'None':
+                            sections[current_section].append(key)
         
         return cls(tags, sections, inline_comments, solo_comments)
     
