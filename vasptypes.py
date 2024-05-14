@@ -72,19 +72,19 @@ class Ions(list[Ion]):
     """
     def __init__(self, ions:list[Ion]=[], indices:list=[]):
         self.indices = indices
-        super().__init__(ions)
+        return super().__init__(ions)
 
     def __iter__(self):
         for i, ion in zip(self.indices, super().__iter__()):
             yield i, ion
 
     def append(self, ion:Ion, index:int):
-        super().append(ion)
         self.indices.append(index)
+        return super().append(ion)
 
     def pop(self, index:int=-1):
-        super().pop(index)
         self.indices.pop(index)
+        return super().pop(index)
 
 # Class for an INCAR since it's basically just a dictionary
 class Incar(dict):
