@@ -65,6 +65,11 @@ class Ion(object):
 
 # For use in POSCAR type hinting and ion portability
 class Ions(list[Ion]):
+    """
+    Stores a list of Ion objects and allows easy iteration.
+    Also stores a companion list of indices according to the POSCAR
+    it was derived from; allowing for edits to POSCAR contents later.
+    """
     def __init__(self, ions:list[Ion]=[], indices:list=[]):
         self.indices = indices
         super().__init__(ions)
@@ -87,9 +92,13 @@ class Incar(dict):
     # Use the normal dictionary constructor
     # Add a comments list on the side
     def __init__(self, tags:dict, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
+        # Dictionary of sections with lists of tags within
         self.sections = sections
+        # Dictionary of inline comments and their respective tags
         self.inline_comments = inline_comments
+        # List of solitary comments and their sections
         self.solo_comments = solo_comments
+        # A dictionary of all the VASP tags
         super().__init__(tags)
 
     def __section_str__(self, section:str, key_len, value_len) -> str:
@@ -105,14 +114,14 @@ class Incar(dict):
         formatted_string += '\n' if len(local_solo_comments) > 0 else ''
         # Then the keys, values, and inline comments
         for key in self.sections[section]:
-            formatted_string += self.__tagline_str__(key, key_len, value_len)
+            formatted_string += self.__tag_str__(key, key_len, value_len)
         return formatted_string
     
-    def __tagline_str__(self, key:str, key_len, value_len) -> str:
+    def __tag_str__(self, key:str, key_len, value_len) -> str:
         formatted_string = f"{key:<{key_len}} = "
         value = self[key]
         if type(value) is list:
-            value = ' '.join(value)
+            value = ' '.join( ( str(i) for i in value ) )
         formatted_string += f"{value:<{value_len}}"
         try:
             formatted_string += f" ! {self.inline_comments[key]}"
@@ -121,8 +130,8 @@ class Incar(dict):
         return formatted_string + '\n'
 
     def __str__(self) -> str:
-        key_len = 12
-        value_len = 12
+        key_len = 8
+        value_len = 8
         formatted_string = ''
         
         # Format for each section
@@ -134,13 +143,9 @@ class Incar(dict):
     @classmethod
     def from_file(cls, input:str="INCAR"):
         input_path = Path(input)
-        # A dictionary of all the VASP tags
         tags = {}
-        # Dictionary of sections with lists of tags within
         sections = {}
-        # Dictionary of inline comments and their respective tags
         inline_comments = {}
-        # List of solitary comments and their sections
         solo_comments = []
 
         with input_path.open('r') as incar_file:
