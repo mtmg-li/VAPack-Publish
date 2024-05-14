@@ -101,6 +101,14 @@ class Incar(dict):
         # A dictionary of all the VASP tags
         super().__init__(tags)
 
+    # Overwrite normal bitwise Or behavior
+    def __or__(self, b):
+        tags = dict(self) | dict(b)
+        sections = self.sections | b.sections
+        inline_comments = self.inline_comments | b.inline_comments
+        solo_comments = self.solo_comments + b.solo_comments
+        return Incar(tags, sections, inline_comments, solo_comments)
+
     def __section_str__(self, section:str, key_len, value_len) -> str:
         # Get the title first
         if not( section.lower() == 'none'):
