@@ -149,10 +149,7 @@ class Incar(dict):
 
     def __section_str__(self, section:str, key_len, value_len) -> str:
         # Get the title first
-        if not( section.lower() == 'none'):
-            formatted_string = f"\n# {section}\n\n"
-        else:
-            formatted_string = ''
+        formatted_string = f"\n# {section}\n\n"
         # Then the solitary comments in one block
         local_solo_comments = [s[0] for s in self.solo_comments if s[1] == section]
         for comment in local_solo_comments:
@@ -168,7 +165,7 @@ class Incar(dict):
         value = self[key]
         if type(value) is list:
             value = ' '.join( ( str(i) for i in value ) )
-        formatted_string += f"{value:<{value_len}}"
+        formatted_string += f"{str(value):<{value_len}}"
         try:
             formatted_string += f" ! {self.inline_comments[key]}"
         except KeyError:
@@ -224,7 +221,7 @@ class Incar(dict):
 
         with input_path.open('r') as incar_file:
             incar_text = incar_file.readlines()
-            current_section = 'None'
+            current_section = None
             for line in incar_text:
                 line = line.strip()
                 # Skip empty lines
@@ -273,13 +270,14 @@ class Incar(dict):
                                 if key in v:
                                     sections[k].remove(key)
                         tags[key] = value
-                        # If the section hasn't been added, add it
+                        # Skip the sectioning if this is an orphaned tag
+                        if current_section is None:
+                            continue
+                        # If the section hasn't been created, do so
                         if not( current_section in sections.keys() ):
                             sections[current_section] = []
-                        # Add the key to its section, create section if it doesn't exist
-                        # Skip if it is None
-                        if current_section != 'None':
-                            sections[current_section].append(key)
+                        # Add the tag to the section
+                        sections[current_section].append(key)
         
         return cls(tags, sections, inline_comments, solo_comments)
     
