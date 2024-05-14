@@ -313,6 +313,8 @@ class interpolate(Subcommand):
             image_template.to_file(output_path)
 
 class genincar(Subcommand):
+    # TODO: Rerunning the generator can produce different ordering for one section's
+    # tags. It appears random, but doesn't cause any (known) issues. Low priority, I guess?
     description = "Generate an INCAR file from the provided templates"
     parser = ArgumentParser()
     parser.add_argument( 'sources', nargs='+', type=str, help='Input files' )

@@ -106,13 +106,24 @@ class Incar(dict):
         # TODO: Handle case where key is placed in different sections
         tags = dict(self) | dict(b)
         sections = self.sections | b.sections
+        for k in sections.keys():
+            try:
+                sections[k] = list(set(self.sections[k] + b.sections[k]))
+            except KeyError:
+                pass
         inline_comments = self.inline_comments | b.inline_comments
         solo_comments = self.solo_comments + b.solo_comments
         return Incar(tags, sections, inline_comments, solo_comments)
     
     # In-place bitwise Or
     def __ior__(self, b):
-        self.sections |= b.sections
+        sections = self.sections | b.sections
+        for k in sections.keys():
+            try:
+                sections[k] = list(set(self.sections[k] + b.sections[k]))
+            except KeyError:
+                pass
+        self.sections = sections
         self.inline_comments |= b.inline_comments
         self.solo_comments += b.solo_comments
         return super().__ior__(b)
