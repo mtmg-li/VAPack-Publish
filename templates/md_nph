@@ -1,10 +1,13 @@
 # Ionic
 
 IBRION = 0 ! Choose molecular dynamics
-MDALGO = 3 ! Using Anderson thermostat
 ISIF = 3 ! Compute stress tensor but do not change box volume
-TEBEG = {TEBEG} ! Initial temperature
 NSW = {NSW} ! Number of time steps
 POTIM = 1.0 ! Time steps in femtoseconds
+
+# Thermostat
+
+MDALGO = 3 ! Using Anderson thermostat
+TEBEG = {TEBEG} ! Initial temperature
 LANGEVIN_GAMMA = 0.0 ! Set Langevin species friction coefficient; must be zero per species, otherwise it's NpT
 LANGEVIN_GAMMA_L = 0.0 ! Set Langevin species lattice friction coefficient, must be zero, otherwise it's NpT

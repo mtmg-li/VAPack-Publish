@@ -1,3 +1,4 @@
 # Output
 
 LCHARG = .FALSE. ! Do not write CHG and CHGCAR
+LWAVE = .FALSE. ! Do not write WAVECAR
