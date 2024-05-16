@@ -72,26 +72,28 @@ class Ions(list[Ion]):
     """
     def __init__(self, ions:list[Ion]=[], indices:list=[]):
         self.indices = indices
-        super().__init__(ions)
+        return super().__init__(ions)
 
     def __iter__(self):
         for i, ion in zip(self.indices, super().__iter__()):
             yield i, ion
 
     def append(self, ion:Ion, index:int):
-        super().append(ion)
         self.indices.append(index)
+        return super().append(ion)
 
     def pop(self, index:int=-1):
-        super().pop(index)
         self.indices.pop(index)
+        return super().pop(index)
 
 # Class for an INCAR since it's basically just a dictionary
 class Incar(dict):
 
     # Use the normal dictionary constructor
     # Add a comments list on the side
-    def __init__(self, tags:dict, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
+    def __init__(self, tags:dict={}, sections:dict={}, inline_comments:dict={}, solo_comments=[]):
+        self.key_length = 8
+        self.value_length = 8
         # Dictionary of sections with lists of tags within
         self.sections = sections
         # Dictionary of inline comments and their respective tags
@@ -99,16 +101,37 @@ class Incar(dict):
         # List of solitary comments and their sections
         self.solo_comments = solo_comments
         # A dictionary of all the VASP tags
-        super().__init__(tags)
+        return super().__init__(tags)
 
     # Overwrite normal bitwise Or behavior
     def __or__(self, b):
         # TODO: Handle case where key is placed in different sections
         tags = dict(self) | dict(b)
         sections = self.sections | b.sections
+        for k in sections.keys():
+            try:
+                sections[k] = list(set(self.sections[k] + b.sections[k]))
+            except KeyError:
+                pass
         inline_comments = self.inline_comments | b.inline_comments
         solo_comments = self.solo_comments + b.solo_comments
         return Incar(tags, sections, inline_comments, solo_comments)
+    
+    # In-place bitwise Or
+    def __ior__(self, b):
+        sections = self.sections | b.sections
+        for k in sections.keys():
+            try:
+                sections[k] = list(set(self.sections[k] + b.sections[k]))
+            except KeyError:
+                pass
+        self.sections = sections
+        self.inline_comments |= b.inline_comments
+        self.solo_comments += b.solo_comments
+        return super().__ior__(b)
+
+    def update(self, b):
+        self.__ior__(b)
     
     def __delitem__(self, key:str) -> None:
         # Delete an inline comment if it exists
@@ -126,12 +149,9 @@ class Incar(dict):
     def remove(self, key:str) -> None:
         return self.__delitem__(key)
 
-    def __section_str__(self, section:str, key_len, value_len) -> str:
+    def __section_str__(self, section:str) -> str:
         # Get the title first
-        if not( section.lower() == 'none'):
-            formatted_string = f"\n# {section}\n\n"
-        else:
-            formatted_string = ''
+        formatted_string = f"\n# {section}\n\n"
         # Then the solitary comments in one block
         local_solo_comments = [s[0] for s in self.solo_comments if s[1] == section]
         for comment in local_solo_comments:
@@ -139,15 +159,15 @@ class Incar(dict):
         formatted_string += '\n' if len(local_solo_comments) > 0 else ''
         # Then the keys, values, and inline comments
         for key in self.sections[section]:
-            formatted_string += self.__tag_str__(key, key_len, value_len)
+            formatted_string += self.__tag_str__(key)
         return formatted_string
     
-    def __tag_str__(self, key:str, key_len, value_len) -> str:
-        formatted_string = f"{key:<{key_len}} = "
+    def __tag_str__(self, key:str) -> str:
+        formatted_string = f"{key:<{self.key_length}} = "
         value = self[key]
         if type(value) is list:
             value = ' '.join( ( str(i) for i in value ) )
-        formatted_string += f"{value:<{value_len}}"
+        formatted_string += f"{str(value):<{self.value_length}}"
         try:
             formatted_string += f" ! {self.inline_comments[key]}"
         except KeyError:
@@ -166,12 +186,16 @@ class Incar(dict):
         return formatted_string.strip()
     
     def to_rich_string(self) -> str:
-        key_len = 8
-        value_len = 8
         formatted_string = ''
+        # Get any tags that aren't in a section first
+        sectioned_tag_set = set(it.chain.from_iterable( (s for s in self.sections.values()) ))
+        orphaned_tags = list( set(self.keys()) - sectioned_tag_set )
+        for key in orphaned_tags:
+            formatted_string += self.__tag_str__(key)
         # Format for each section
         for section in self.sections:
-            formatted_string += self.__section_str__(section, key_len, value_len)
+            formatted_string += self.__section_str__(section)
+        
         return formatted_string.strip()
 
     def to_file(self, file:str, parents=True, simple=False) -> None:
@@ -197,7 +221,7 @@ class Incar(dict):
 
         with input_path.open('r') as incar_file:
             incar_text = incar_file.readlines()
-            current_section = 'None'
+            current_section = None
             for line in incar_text:
                 line = line.strip()
                 # Skip empty lines
@@ -246,10 +270,13 @@ class Incar(dict):
                                 if key in v:
                                     sections[k].remove(key)
                         tags[key] = value
-                        # If the section hasn't been added, add it
+                        # Skip the sectioning if this is an orphaned tag
+                        if current_section is None:
+                            continue
+                        # If the section hasn't been created, do so
                         if not( current_section in sections.keys() ):
                             sections[current_section] = []
-                        # Add the key to its section, create section if it doesn't exist
+                        # Add the tag to the section
                         sections[current_section].append(key)
         
         return cls(tags, sections, inline_comments, solo_comments)

@@ -4,12 +4,12 @@
 Command line program that provides easy access to tools in Vasp Tool Kit
 """
 
-import poskit_lib
+import vapack_lib
 from argparse import ArgumentParser
 from copy import deepcopy
 import sys
 
-subcommands = [ sc for sc in poskit_lib.Subcommand.__subclasses__() ]
+subcommands = [ sc for sc in vapack_lib.Subcommand.__subclasses__() ]
 
 # Define top level parser
 parser = ArgumentParser( description='Do things for VASP' )

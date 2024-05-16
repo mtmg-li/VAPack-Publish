@@ -311,3 +311,35 @@ class interpolate(Subcommand):
             output_path = Path( ".", str(i).zfill(2), "POSCAR" )
             # Write the file
             image_template.to_file(output_path)
+
+class genincar(Subcommand):
+    # TODO: Rerunning the generator can produce different ordering for one section's
+    # tags. It appears random, but doesn't cause any (known) issues. Low priority, I guess?
+    description = "Generate an INCAR file from the provided templates"
+    parser = ArgumentParser()
+    parser.add_argument( 'sources', nargs='+', type=str, help='Input files' )
+    parser.add_argument('-o','--output', type=str, default='INCAR', help='Output file')
+    parser.add_argument('-d', '--template_dir', type=str, default='templates/incar/',
+                        help='Template directory')
+    parser.add_argument('-s', '--system', type=str, help='System name')
+
+    @staticmethod
+    def run(sources:list[str], output:str='INCAR', template_dir:str='templates/incar/',
+            system:str=None, verbose:bool=False, no_write:bool=False):
+        # Set the template containing directory
+        template_dir = Path(template_dir)
+        # Get paths to the templates and ensure they exist
+        template_files = [ Path(template_dir, s) for s in sources ]
+        for f in template_files:
+            if not( f.exists() ):
+                raise RuntimeError('Could not find template')
+        # Iterate through the templates and construct the incar
+        incar = Incar()
+        for f in template_files:
+            incar |= Incar.from_file(f)
+        
+        # Set the system name
+        incar['System'] = str(system)
+
+        # Write the file
+        incar.to_file(output)
