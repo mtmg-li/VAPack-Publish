@@ -1,7 +1,13 @@
+# Ionic
+
 IBRION = 0 ! Choose molecular dynamics
-MDALGO = 1 ! Using Anderson thermostat
 ISIF = 2 ! Compute stress tensor but do not change box volume/shape
-TEBEG = {TEBEG} ! Initial temperature
 NSW = {NSW} ! Number of time steps
 POTIM = 1.0 ! Time step in femtoseconds
+
+# Thermostat
+! Anderson
+
+MDALGO = 1 ! Using Anderson thermostat
+TEBEG = {TEBEG} ! Initial temperature
 ANDERSON_PROB = 0.0 ! Setting Andersen collision probability to zero to get NVE enseble
