@@ -1,7 +1,0 @@
----
-Output: # Output
-
-  - tag: LCHARG
-    value: .FALSE.
-    comment: Do not write CHG and CHGCAR
-...
