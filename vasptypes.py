@@ -299,11 +299,14 @@ class Potcar(object):
 
     def generate_string(self) -> str:
         # Choose the LDA or PBE automatically if it isn't specified
-        if not(self.directory.name.lower() in ['gga', 'lda']):
+        directory = Path(self.directory)
+        if not(directory.name.lower() in ['gga', 'lda']):
             if len(self.potentials) > 1:
-                directory = Path(self.directory, 'GGA')
+                directory = Path(directory, 'GGA')
             else:
-                directory = Path(self.directory, 'LDA')
+                directory = Path(directory, 'LDA')
+        if not(directory.exists()):
+            raise RuntimeError(f'Expected potcar directory `{directory}` does not exist')
 
         # Create a list of paths for the species' POTCARs
         potential_paths = [ Path(directory, sp, 'POTCAR') for sp in self.potentials ]
