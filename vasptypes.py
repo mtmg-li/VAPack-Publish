@@ -364,7 +364,7 @@ class Poscar(object):
         """
         # Make sure the species list is in order
         species = {}
-        for ion in self.ions:
+        for _, ion in self.ions:
             isp = ion.species.lower().capitalize()
             if species.__contains__(isp):
                 species[isp] += 1
@@ -374,7 +374,7 @@ class Poscar(object):
         # Make sure the ions are sorted properly
         ions = []
         for sp in self.species.keys():
-            mask = [ i.species==sp for i in self.ions ]
+            mask = [ i.species==sp for _, i in self.ions ]
             ions += list( it.compress(self.ions, mask) )
         self.ions = ions
 
@@ -405,7 +405,7 @@ class Poscar(object):
         Ainv = np.linalg.inv(A)
         # Convert all ion positions to fractions of the lattice vectors and round to zero
 
-        for i,_ in enumerate(self.ions):
+        for i,_ in self.ions:
             self.ions[i]._apply_transformation(Ainv)
 
         # Change the mode string
@@ -425,7 +425,7 @@ class Poscar(object):
         # Convert all ion positions to fractions of the lattice vectors and round to zero
         # Create the transformation matrix and tolerance
         A = self.lattice.transpose()
-        for i, ion in enumerate(self.ions):
+        for i, _ in self.ions:
             self.ions[i]._apply_transformation(A)
 
         # Change the mode string
@@ -443,7 +443,7 @@ class Poscar(object):
 
         # If any direct mode coordinate exceeds +-1
         # subtract the floor from that coordinate, keeping the fraction
-        for i, ion in enumerate(self.ions):
+        for i, ion in self.ions:
             self.ions[i].position = ion.position - ion.position // 1
 
         # Reconvert if necessary
@@ -580,7 +580,7 @@ class Poscar(object):
         poscar_string += self.mode + '\n'
 
         # Write the ion positions with selective dynamics tags if needed
-        for ion in self.ions:
+        for _, ion in self.ions:
             line = '{:>11.8f}  {:>11.8f}  {:>11.8f}'.format(*ion.position)
             if self.selective_dynamics:
                 line += ' {:>1s} {:>1s} {:>1s}'.format(*[ 'T' if t else 'F' for t in ion.selective_dynamics])
