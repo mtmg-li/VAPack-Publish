@@ -3,6 +3,7 @@ import numpy as np
 import itertools as it
 from ast import literal_eval
 import re
+from copy import deepcopy
 
 # Storage of position mode (direct or cartesian) is _only_ done in the POSCAR.
 # The units on position of an ion makes no sense unless taken into context with
@@ -77,9 +78,24 @@ class Ions(list[Ion]):
     def __iter__(self):
         for i, ion in zip(self.indices, super().__iter__()):
             yield i, ion
+    
+    # TODO: Revisit this deepcopy implementation. It relies on using the append
+    # member function which can allow for breaking of index list.
+    def __deepcopy__(self, memo:dict):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for _, ion in self:
+            result.append(deepcopy(ion, memo))
+        for k, v in self.__dict__.items():
+            setattr(result, k, deepcopy(v, memo))
+        return result
 
-    def append(self, ion:Ion, index:int):
-        self.indices.append(index)
+    # TODO: Revamp this to enforce a well kept index list by always having an index
+    # associated with its corresponding ion
+    def append(self, ion:Ion, index:int=None):
+        if index is not None:
+            self.indices.append(index)
         return super().append(ion)
 
     def pop(self, index:int=-1):
