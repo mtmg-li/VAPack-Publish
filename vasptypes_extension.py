@@ -7,7 +7,7 @@ def translate(ions:Ions, r=np.array(float)) -> Ions:
     Translate the given selection along the x, y, or z dimension.
     """
     ions_t = deepcopy(ions)
-    for i, _ in enumerate(ions_t):
+    for i, _ in ions_t:
         ions_t[i].position += r
     return ions_t
 
@@ -25,7 +25,7 @@ def box_select(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None
     
     # Add ions that reside within box to selection list
     selection, indices = [], []
-    for i, ion in enumerate(poscar_cp.ions):
+    for i, ion in poscar_cp.ions:
         if  ( x_range is None or (x_range[0] <= ion.position[0] <= x_range[1]) )\
         and ( y_range is None or (y_range[0] <= ion.position[1] <= y_range[1]) )\
         and ( z_range is None or (z_range[0] <= ion.position[2] <= z_range[1]) ):
@@ -51,7 +51,7 @@ def center_around(poscar:Poscar, index:int) -> Poscar:
     poscar_cp._constrain()
     # If something is more than 0.5*lattice vector away,
     # either add or subtract to retrieve the appropriate image
-    for i, ion in enumerate(poscar_cp.ions):
+    for i, ion in poscar_cp.ions:
         c = ion.position - poscar_cp.ions[index].position
         c = -1 * np.array(np.abs(c) > 0.5, dtype=int) * np.sign(c)
         poscar_cp.ions[i].position += c
@@ -84,7 +84,7 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
             continue
         poscar_cp = center_around(poscar, i)
         poscar_cp._convert_to_cartesian()
-        poscar_cp_enum = enumerate(poscar_cp.ions)
+        poscar_cp_enum = poscar_cp.ions
         for j, ion in poscar_cp_enum:
             if j in selection.indices:
                 continue
