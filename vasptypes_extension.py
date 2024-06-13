@@ -7,7 +7,8 @@ def translate(ions:Ions, r=np.array(float)) -> Ions:
     Translate the given selection along the x, y, or z dimension.
     """
     ions_t = deepcopy(ions)
-    for i, _ in ions_t:
+    r = np.array(r)
+    for i, _ in enumerate(ions_t):
         ions_t[i].position += r
     return ions_t
 
@@ -55,7 +56,7 @@ def center_around(poscar:Poscar, index:int) -> Poscar:
         c = ion.position - poscar_cp.ions[index].position
         c = -1 * np.array(np.abs(c) > 0.5, dtype=int) * np.sign(c)
         poscar_cp.ions[i].position += c
-    
+
     # Reconvert if needed
     if converted:
         poscar_cp._toggle_mode()
@@ -75,7 +76,7 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
 
     # From the selected ion, find neighbors in range
     first_hydrogen = True
-    for i, selected_ion, jump in zip(selection, jumps):
+    for (i, selected_ion), jump in zip(selection, jumps):
         if jump >= extent:
             continue
         if hydrogen_termination \
@@ -84,8 +85,7 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
             continue
         poscar_cp = center_around(poscar, i)
         poscar_cp._convert_to_cartesian()
-        poscar_cp_enum = poscar_cp.ions
-        for j, ion in poscar_cp_enum:
+        for j, ion in poscar_cp.ions:
             if j in selection.indices:
                 continue
             if ion.species.lower() in species_blacklist:
