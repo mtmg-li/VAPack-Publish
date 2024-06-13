@@ -235,7 +235,7 @@ class slabfreeze(Subcommand):
         dimensions = Ion.list_to_bools(dimensions)
         
         # Get box selection of ions
-        selection = vte.box_select(poscar, x_range, y_range, z_range, mode)
+        selection = vte.get_select_box(poscar, x_range, y_range, z_range, mode)
 
         # Change the selective dynamics of selection
         for i, _ in enumerate(poscar.ions):

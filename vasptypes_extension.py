@@ -12,7 +12,7 @@ def translate(ions:Ions, r=np.array(float)) -> Ions:
         ions_t[i].position += r
     return ions_t
 
-def box_select(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None,\
+def get_select_box(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None,\
                z_range:list[float]=None, mode:str=None) -> Ions:
     # If mode was not set, grab it automatically
     poscar_cp = deepcopy(poscar)
@@ -39,7 +39,7 @@ def box_select(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None
         
     return Ions(selection, indices)
 
-def center_around(poscar:Poscar, index:int) -> Poscar:
+def get_centered_around(poscar:Poscar, index:int) -> Poscar:
     # Create a copy of the poscar
     poscar_cp = deepcopy(poscar)
     # Convert to direct if needed
@@ -63,9 +63,9 @@ def center_around(poscar:Poscar, index:int) -> Poscar:
     
     return poscar_cp
 
-def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
-                 extent:int=np.inf, species_blacklist:list[str]=[],\
-                 index_blacklist:list[int]=[], hydrogen_termination:bool=True):
+def get_select_chain(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
+                     extent:int=np.inf, species_blacklist:list[str]=[],\
+                     index_blacklist:list[int]=[], hydrogen_termination:bool=True):
 
     species_blacklist = [ s.lower() for s in species_blacklist ]
 
@@ -83,7 +83,7 @@ def chain_select(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
         and not( first_hydrogen ) \
         and selected_ion.species == "H":
             continue
-        poscar_cp = center_around(poscar, i)
+        poscar_cp = get_centered_around(poscar, i)
         poscar_cp._convert_to_cartesian()
         for j, ion in poscar_cp.ions:
             if j in selection.indices:
