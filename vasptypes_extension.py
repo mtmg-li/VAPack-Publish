@@ -2,7 +2,7 @@ from vasptypes import Poscar, Ions
 import numpy as np
 from copy import deepcopy
 
-def translate(ions:Ions, r:np.array[float]) -> Ions:
+def translate(ions:Ions, r:np.array([float])) -> Ions:
     """
     Translate the given selection along the x, y, or z dimension.
     """

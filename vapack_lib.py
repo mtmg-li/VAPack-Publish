@@ -1,4 +1,4 @@
-from vasptypes import Ion, Poscar, Incar, Potcar
+from vasptypes import Ion, Ions, Poscar, Incar, Potcar
 import vasptypes_extension as vte
 from pathlib import Path
 import numpy as np
@@ -281,7 +281,7 @@ class interpolate(Subcommand):
             raise RuntimeError('Number of ions do not match!')
         
         # Ensure no ions cross the unit cell boundaries
-        for i, (ion1, ion2) in enumerate(zip(poscar1.ions, poscar2.ions)):
+        for (i, ion1), (_, ion2) in zip(poscar1.ions, poscar2.ions):
             if (np.sign(ion1.position)*np.sign(ion2.position)).sum() != 3:
                 print(f"Warning: Ion {i} crossed boundary between anchors!")
 
@@ -295,9 +295,9 @@ class interpolate(Subcommand):
         # Interpolate between ion positions and save to template
         for i in range(images+2):
             # Erase the existing ion data in the template
-            image_template.ions = []
+            image_template.ions = Ions()
             # Get interpolated ion positions
-            for ion1, ion2 in zip(poscar1.ions, poscar2.ions):
+            for (j,ion1), (_,ion2) in zip(poscar1.ions, poscar2.ions):
                 new_ion = Ion()
                 new_ion.position = ion1.position + (ion2.position-ion1.position)/(images+1)*i
                 new_ion.species = ion1.species
@@ -306,7 +306,7 @@ class interpolate(Subcommand):
                         print(f'Ion {i} selective dynamics disagreed. Defaulting to all TRUE.')
                     else:
                         new_ion.selective_dynamics = ion1.selective_dynamics
-                image_template.ions.append(new_ion)
+                image_template.ions.append(new_ion, j)
             # Create output path
             output_path = Path( ".", str(i).zfill(2), "POSCAR" )
             # Write the file
