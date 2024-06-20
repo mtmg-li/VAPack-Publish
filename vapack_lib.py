@@ -264,11 +264,12 @@ class interpolate(Subcommand):
                         help='Number of interpolated images to create', default=1 )
     parser.add_argument( '-c', '--center', action="store_true",
                         help='Center the POSCARS about center of mass (unused)' )
-    parser.add_argument( '-S', '--selective_dynamics', action='store_true')
+    parser.add_argument( '-S', '--selective-dynamics', action='store_true')
+    parser.add_argument( '--boundary-resolve', type=str, choices=['skip'], help='How to resolve boundary cross cases')
 
     @staticmethod
     def run(file1:str, file2:str, images:int=1, center:bool=False,
-            selective_dynamics:bool=False,
+            selective_dynamics:bool=False, boundary_resolve:str=None,
             verbose:bool=False, no_write:bool=False):
         # Load the anchors
         poscar1 = Poscar.from_file(file1)
@@ -281,9 +282,11 @@ class interpolate(Subcommand):
             raise RuntimeError('Number of ions do not match!')
         
         # Ensure no ions cross the unit cell boundaries
+        boundary_resolution_indices = []
         for (i, ion1), (_, ion2) in zip(poscar1.ions, poscar2.ions):
             if (np.sign(ion1.position)*np.sign(ion2.position)).sum() != 3:
                 print(f"Warning: Ion {i} crossed boundary between anchors!")
+                boundary_resolution_indices += [i]
 
         # Template the output poscar image
         image_template = deepcopy(poscar1)
@@ -293,14 +296,28 @@ class interpolate(Subcommand):
             image_template.selective_dynamics = False
 
         # Interpolate between ion positions and save to template
+        resolution_message_printed = False
         for i in range(images+2):
             # Erase the existing ion data in the template
             image_template.ions = Ions()
             # Get interpolated ion positions
             for (j,ion1), (_,ion2) in zip(poscar1.ions, poscar2.ions):
                 new_ion = Ion()
-                new_ion.position = ion1.position + (ion2.position-ion1.position)/(images+1)*i
                 new_ion.species = ion1.species
+                # Handle edge cases where there'll be bad interpolation
+                if j in boundary_resolution_indices:
+                    if not(resolution_message_printed):
+                        resolution_message_printed = True
+                        print(f'Resolving case on ion {j} with "{boundary_resolve}"')
+                    if boundary_resolve == "skip":
+                        if i < images+1:
+                            new_ion.position = ion1.position
+                        else:
+                            new_ion.position = ion2.position
+                # For normal cases, go by normal linear interpolation
+                else:
+                    new_ion.position = ion1.position + (ion2.position-ion1.position)/(images+1)*i
+                # Add selective dynamics tags if appropriate
                 if selective_dynamics:
                     if not(np.array_equal(ion1.selective_dynamics, ion2.selective_dynamics)):
                         print(f'Ion {i} selective dynamics disagreed. Defaulting to all TRUE.')
