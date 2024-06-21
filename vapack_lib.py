@@ -331,7 +331,9 @@ class interpolate(Subcommand):
                 # Add selective dynamics tags if appropriate
                 if selective_dynamics:
                     if not(np.array_equal(ion1.selective_dynamics, ion2.selective_dynamics)):
+                        dynamics_resolver = 'free' if dynamics_resolver is None else dynamics_resolver
                         if not(dynamics_resolver_message_printed):
+                            dynamics_resolver_message_printed = True
                             print(f'Ion {j} selective dynamics disagreed. Resolving with {dynamics_resolver}.')
                         if dynamics_resolver == "first":
                             new_ion.selective_dynamics = ion1.selective_dynamics
@@ -341,6 +343,9 @@ class interpolate(Subcommand):
                             new_ion.selective_dynamics = np.array([True]*3)
                         elif dynamics_resolver == "fixed":
                             new_ion.selective_dynamics = np.array([False]*3)
+                        else:
+                            # New ion object default (currently all true)
+                            pass
                     else:
                         new_ion.selective_dynamics = ion1.selective_dynamics
                 image_template.ions.append(new_ion, j)
