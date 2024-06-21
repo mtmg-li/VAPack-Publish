@@ -265,17 +265,22 @@ class interpolate(Subcommand):
     parser.add_argument( '-c', '--center', action="store_true",
                         help='Center the POSCARS about center of mass (unused)' )
     parser.add_argument( '-S', '--selective-dynamics', action='store_true')
-    parser.add_argument( '--boundary-resolve', type=str, choices=['skip'], help='How to resolve boundary cross cases')
+    parser.add_argument( '--boundary-resolver', type=str, choices=['first', 'last'], help='How to resolve boundary cross cases')
+    parser.add_argument( '--dynamics-resolver', type=str, choices=['first', 'last', 'free', 'fixed'], help='How to resolve disagreements between selective dynamics')
 
     @staticmethod
     def run(file1:str, file2:str, images:int=1, center:bool=False,
-            selective_dynamics:bool=False, boundary_resolve:str=None,
+            selective_dynamics:bool=False, boundary_resolver:str=None,
+            dynamics_resolver:str=None,
             verbose:bool=False, no_write:bool=False):
         # Load the anchors
         poscar1 = Poscar.from_file(file1)
         poscar2 = Poscar.from_file(file2)
 
         # TODO: Check if the headers match
+        # Make sure the files are in the same coordinate space
+        if poscar2.mode != poscar1.mode:
+            poscar2._toggle_mode()
 
         # Ensure that there are the same number of ions in each
         if len(poscar1.ions) != len(poscar2.ions):
@@ -296,7 +301,8 @@ class interpolate(Subcommand):
             image_template.selective_dynamics = False
 
         # Interpolate between ion positions and save to template
-        resolution_message_printed = False
+        boundary_resolver_message_printed = False
+        dynamics_resolver_message_printed = False
         for i in range(images+2):
             # Erase the existing ion data in the template
             image_template.ions = Ions()
@@ -306,11 +312,16 @@ class interpolate(Subcommand):
                 new_ion.species = ion1.species
                 # Handle edge cases where there'll be bad interpolation
                 if j in boundary_resolution_indices:
-                    if not(resolution_message_printed):
-                        resolution_message_printed = True
-                        print(f'Resolving case on ion {j} with "{boundary_resolve}"')
-                    if boundary_resolve == "skip":
+                    if not(boundary_resolver_message_printed):
+                        boundary_resolver_message_printed = True
+                        print(f'Resolving case on ion {j} with "{boundary_resolver}"')
+                    if boundary_resolver == "first":
                         if i < images+1:
+                            new_ion.position = ion1.position
+                        else:
+                            new_ion.position = ion2.position
+                    elif boundary_resolver == "last":
+                        if i == 0:
                             new_ion.position = ion1.position
                         else:
                             new_ion.position = ion2.position
@@ -320,7 +331,16 @@ class interpolate(Subcommand):
                 # Add selective dynamics tags if appropriate
                 if selective_dynamics:
                     if not(np.array_equal(ion1.selective_dynamics, ion2.selective_dynamics)):
-                        print(f'Ion {i} selective dynamics disagreed. Defaulting to all TRUE.')
+                        if not(dynamics_resolver_message_printed):
+                            print(f'Ion {j} selective dynamics disagreed. Resolving with {dynamics_resolver}.')
+                        if dynamics_resolver == "first":
+                            new_ion.selective_dynamics = ion1.selective_dynamics
+                        elif dynamics_resolver == "last":
+                            new_ion.selective_dynamics = ion2.selective_dynamics
+                        elif dynamics_resolver == "free":
+                            new_ion.selective_dynamics = np.array([True]*3)
+                        elif dynamics_resolver == "fixed":
+                            new_ion.selective_dynamics = np.array([False]*3)
                     else:
                         new_ion.selective_dynamics = ion1.selective_dynamics
                 image_template.ions.append(new_ion, j)
