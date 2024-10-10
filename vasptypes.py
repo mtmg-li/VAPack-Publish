@@ -67,6 +67,7 @@ class Ion(object):
 # For use in POSCAR type hinting and ion portability
 class Ions(list[Ion]):
     """
+    __iter__() returns index first, adhering to enum style.
     Stores a list of Ion objects and allows easy iteration.
     Also stores a companion list of indices according to the POSCAR
     it was derived from; allowing for edits to POSCAR contents later.

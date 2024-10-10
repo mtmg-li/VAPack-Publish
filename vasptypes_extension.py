@@ -2,7 +2,7 @@ from vasptypes import Poscar, Ions
 import numpy as np
 from copy import deepcopy
 
-def translate(ions:Ions, r:np.array([float])) -> Ions:
+def translate(ions:Ions, r:np.array[float]) -> Ions:
     """
     Translate the given selection along the x, y, or z dimension.
     """
@@ -11,6 +11,14 @@ def translate(ions:Ions, r:np.array([float])) -> Ions:
     for i, _ in enumerate(ions_t):
         ions_t[i].position += r
     return ions_t
+
+def get_select_sphere(poscar:Poscar, center:list[float], radius:float, mode:str=None,
+                      periodic:bool=True) -> Ions:
+    """
+    Return a list of all the ions that fall within a sphere centered at any point in the cell
+    """
+    # If periodic, center the cell around the point
+    pass
 
 def get_select_box(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=None,\
                z_range:list[float]=None, mode:str=None) -> Ions:
@@ -39,7 +47,7 @@ def get_select_box(poscar:Poscar, x_range:list[float]=None, y_range:list[float]=
         
     return Ions(selection, indices)
 
-def get_centered_around(poscar:Poscar, index:int) -> Poscar:
+def get_centered_around(poscar:Poscar, point:list[float]) -> Poscar:
     # Create a copy of the poscar
     poscar_cp = deepcopy(poscar)
     # Convert to direct if needed
@@ -53,7 +61,7 @@ def get_centered_around(poscar:Poscar, index:int) -> Poscar:
     # If something is more than 0.5*lattice vector away,
     # either add or subtract to retrieve the appropriate image
     for i, ion in poscar_cp.ions:
-        c = ion.position - poscar_cp.ions[index].position
+        c = ion.position - np.array(point)
         c = -1 * np.array(np.abs(c) > 0.5, dtype=int) * np.sign(c)
         poscar_cp.ions[i].position += c
 
@@ -83,7 +91,7 @@ def get_select_chain(poscar:Poscar, start_index:int, jump_distance:float=1.0,\
         and not( first_hydrogen ) \
         and selected_ion.species == "H":
             continue
-        poscar_cp = get_centered_around(poscar, i)
+        poscar_cp = get_centered_around(poscar, selected_ion.position)
         poscar_cp._convert_to_cartesian()
         for j, ion in poscar_cp.ions:
             if j in selection.indices:
