@@ -51,16 +51,25 @@ def bond_angle(
 
 def all_bond_angles(
     poscar: Poscar,
-    chain: tuple[str, str, str],
+    chain: tuple[str, str, str]|str,
     max_bondlength: int,
     degrees: bool = False,
 ) -> npt.NDArray:
-    # Make sure the chain's species actually exist in the poscar
     poscar = deepcopy(poscar)
-    species_a = chain[0]
-    species_b = chain[2]
-    species_center = chain[1]
-    for sp in chain:
+    # Interpret the chain argument
+    if isinstance(chain, (tuple, list)):
+        species_a = chain[0].strip()
+        species_b = chain[2].strip()
+        species_center = chain[1].strip()
+    elif isinstance(chain, str):
+        cl = chain.split('-')
+        if len(cl) != 3:
+            raise RuntimeError(f'Bad bond angle chain provided: {chain}')
+        species_a = cl[0].strip()
+        species_b = cl[2].strip()
+        species_center = cl[1].strip()
+    # Make sure the chain's species actually exist in the poscar
+    for sp in (species_a, species_b, species_center):
         if sp not in list(poscar.species.keys()):
             raise RuntimeError(
                 f'Could not find species {sp} in provided poscar "{poscar.comment}"'
@@ -77,6 +86,9 @@ def all_bond_angles(
         neighbors = vte.get_neighbors(
             poscar, i, max_bondlength, mode="c", periodic=True
         )
+        # If not enough neighbors were discovered, then skip this one
+        if len(neighbors) < 2:
+            continue
         # Wretched complex and c-style loop
         for j, (jj, ion_a) in enumerate(neighbors):  # type: ignore
             if j == len(neighbors):
@@ -95,7 +107,7 @@ def all_bond_angles(
 
 def bond_angle_histogram(
     poscar: Poscar,
-    chain: tuple[str, str, str],
+    chain: tuple[str, str, str]|str,
     max_bondlength: int,
     bins: int = 10,
     degrees: bool = False,
