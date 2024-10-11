@@ -4,6 +4,8 @@ import itertools as it
 from ast import literal_eval
 import re
 from copy import deepcopy
+from numpy.typing import NDArray
+from typing import SupportsIndex
 
 # Storage of position mode (direct or cartesian) is _only_ done in the POSCAR.
 # The units on position of an ion makes no sense unless taken into context with
@@ -17,10 +19,10 @@ class Ion(object):
     # Note: Index is not included here since it strictly applies
     # to the relative placement of the entry in the POSCAR file.
     # Indices are maintained where ion lists are relevant.
-    def __init__(self, position:np.array=np.zeros(3),
+    def __init__(self, position:NDArray=np.zeros(3),
                 species:str="H",
-                selective_dynamics:np.array=np.ones(3,dtype=bool),
-                velocity:np.array=np.zeros(3)):
+                selective_dynamics:NDArray|tuple[bool,bool,bool]=np.ones(3,dtype=bool),
+                velocity:NDArray=np.zeros(3)):
         """
         Initialize an oject to contain ion information.
         """
@@ -39,7 +41,7 @@ class Ion(object):
         self.selective_dynamics = np.array(self.selective_dynamics, dtype=bool)
         self.velocity = np.array(self.velocity, dtype=float)
 
-    def _apply_transformation(self, transform:np.array, tol:float=1e-8) -> None:
+    def _apply_transformation(self, transform:NDArray, tol:float=1e-8) -> None:
         """
         Given transformation matrix (3x3), transform the coordinates of the ion.
         """
@@ -73,13 +75,14 @@ class Ions(list[Ion]):
     it was derived from; allowing for edits to POSCAR contents later.
     """
     def __init__(self, ions:list[Ion]=[], indices:list=[]):
-        self.indices = indices
+        self.indices:list[int] = indices
         return super().__init__(ions)
 
+    # TODO: Fix this so Pyright stops complaining later?
     def __iter__(self):
         for i, ion in zip(self.indices, super().__iter__()):
             yield i, ion
-    
+
     # TODO: Revisit this deepcopy implementation. It relies on using the append
     # member function which can allow for breaking of index list.
     def __deepcopy__(self, memo:dict):
@@ -94,12 +97,12 @@ class Ions(list[Ion]):
 
     # TODO: Revamp this to enforce a well kept index list by always having an index
     # associated with its corresponding ion
-    def append(self, ion:Ion, index:int=None):
+    def append(self, ion:Ion, index:int|None=None):
         if index is not None:
             self.indices.append(index)
         return super().append(ion)
 
-    def pop(self, index:int=-1):
+    def pop(self, index:SupportsIndex=-1):
         self.indices.pop(index)
         return super().pop(index)
 
@@ -133,7 +136,7 @@ class Incar(dict):
         inline_comments = self.inline_comments | b.inline_comments
         solo_comments = self.solo_comments + b.solo_comments
         return Incar(tags, sections, inline_comments, solo_comments)
-    
+
     # In-place bitwise Or
     def __ior__(self, b):
         sections = self.sections | b.sections
@@ -147,9 +150,10 @@ class Incar(dict):
         self.solo_comments += b.solo_comments
         return super().__ior__(b)
 
+    # TODO: Pyright complains about this but I don't know what it means'
     def update(self, b):
         self.__ior__(b)
-    
+
     def __delitem__(self, key:str) -> None:
         # Delete an inline comment if it exists
         try:
@@ -162,7 +166,7 @@ class Incar(dict):
                 self.sections[k].remove(key)
         # Delete the entry in the dictionary
         return super().__delitem__(key)
-    
+
     def remove(self, key:str) -> None:
         return self.__delitem__(key)
 
@@ -178,7 +182,7 @@ class Incar(dict):
         for key in self.sections[section]:
             formatted_string += self.__tag_str__(key)
         return formatted_string
-    
+
     def __tag_str__(self, key:str) -> str:
         formatted_string = f"{key:<{self.key_length}} = "
         value = self[key]
@@ -193,7 +197,7 @@ class Incar(dict):
 
     def __str__(self) -> str:
         return self.to_rich_string()
-    
+
     def to_simple_string(self) -> str:
         formatted_string = ''
         for key, value in self.items():
@@ -201,7 +205,7 @@ class Incar(dict):
                 value = ' '.join( ( str(i) for i in value ) )
             formatted_string += f'{key} = {value}\n'
         return formatted_string.strip()
-    
+
     def to_rich_string(self) -> str:
         formatted_string = ''
         # Get any tags that aren't in a section first
@@ -212,10 +216,10 @@ class Incar(dict):
         # Format for each section
         for section in self.sections:
             formatted_string += self.__section_str__(section)
-        
+
         return formatted_string.strip()
 
-    def to_file(self, file:str, parents=True, simple=False) -> None:
+    def to_file(self, file:str|Path, parents=True, simple=False) -> None:
         """
         Write the INCAR to the given file.
         """
@@ -247,7 +251,7 @@ class Incar(dict):
                 # Error on malformed lines
                 if not( line[0] in ('#','!') ) and not('=' in line):
                     raise RuntimeError(f'Malformed INCAR tag: {line}')
-                
+
                 # Determine if this is a section header, solitary comment,
                 # or tag (optionally with inline comment).
                 # Test the first character to determine the type of line
@@ -295,20 +299,20 @@ class Incar(dict):
                             sections[current_section] = []
                         # Add the tag to the section
                         sections[current_section].append(key)
-        
+
         return cls(tags, sections, inline_comments, solo_comments)
-    
+
 # Class for containing POTCAR info
 # Does not store POTCAR string, but can create it
 class Potcar(object):
     """
     """
-    def __init__(self, potentials:list=[], directory:str='.'):
+    def __init__(self, potentials:list[str]=[], directory:str='.'):
         self.potentials = potentials
         self.directory = Path(directory)
         if not(self.directory.exists()):
             raise RuntimeError('Provided potcar directory does not exist!')
-        
+
     @classmethod
     def from_poscar(cls, input:str='POSCAR', directory:str='.'):
         poscar = Poscar.from_file(input)
@@ -334,7 +338,7 @@ class Potcar(object):
             contents += sp.read_text()
 
         return contents
-    
+
     def generate_file(self, output:str='POTCAR', parents:bool=True) -> None:
         # Choose the LDA or PBE automatically if it isn't specified
         output_path = Path(output)
@@ -348,10 +352,10 @@ class Potcar(object):
 class Poscar(object):
     """
     """
-    def __init__(self, comment:str="", scale:np.array=np.ones(3,dtype=float),
-                 lattice:np.array=np.identity(3,dtype=float), species:dict= {},
-                 selective_dynamics:bool=False, mode:str='Direct', ions:Ions=[],
-                 lattice_velocity:np.array=np.zeros((3,3)), mdextra:str=""):
+    def __init__(self, comment:str="", scale:NDArray=np.ones(3,dtype=float),
+                 lattice:NDArray=np.identity(3,dtype=float), species:dict= {},
+                 selective_dynamics:bool=False, mode:str='Direct', ions:Ions=Ions(),
+                 lattice_velocity:NDArray=np.zeros((3,3)), mdextra:str=""):
         """
         Initialize a POSCAR from argument data only
         """
@@ -370,7 +374,7 @@ class Poscar(object):
         Automatic string conversion
         """
         return self.to_string()
-    
+
     def _reconcile_ions(self):
         """
         Count the population of each species of ions and update
@@ -416,7 +420,7 @@ class Poscar(object):
             if error:
                 raise RuntimeError('POSCAR is already in direct mode.')
             return
-        
+
         # Create the transformation matrix
         A = self.lattice.transpose()
         Ainv = np.linalg.inv(A)
@@ -438,7 +442,7 @@ class Poscar(object):
             if error:
                 raise RuntimeError('POSCAR is already in cartesian mode.')
             return
-        
+
         # Convert all ion positions to fractions of the lattice vectors and round to zero
         # Create the transformation matrix and tolerance
         A = self.lattice.transpose()
@@ -472,7 +476,7 @@ class Poscar(object):
         Return true if position mode is cartesian.
         """
         return self.mode[0].lower() in ('c','k')
-    
+
     def is_direct(self) -> bool:
         """
         Return true if position mode is direct.
@@ -514,7 +518,7 @@ class Poscar(object):
             if line.replace(' ','').strip().isalpha():
                 species = [sp.lower().capitalize() for sp in line.split() ]
                 line = f.readline()
-            
+
             # Read ions per species
             counts = line.strip().split()
             # Handle the optional case of no species specified
@@ -538,16 +542,17 @@ class Poscar(object):
                 s_mode = 'Direct'
             else:
                 raise RuntimeError('Unknown position mode')
-            
-            # Read in ion 
+
+            # TODO: Strict type hinting HATES this section
+            # Read in ion
             s_ions = Ions()
             ions = it.chain.from_iterable([ [sp]*c for sp, c in s_species.items() ])
             for i, sp in enumerate(ions):
                 line = f.readline().split()
                 r = np.array(line[0:3], dtype=float)
-                sd = ['True']*3
+                sd = ('True',)*3
                 if s_selective_dynamics:
-                    sd = np.array([ False if f=='F' else True for f in line[3:6]], dtype=bool)
+                    sd = np.array( tuple([ False if f=='F' else True for f in line[3:6] ]), dtype=bool )
                 v = np.zeros(3)
                 s_ions.append(Ion(r, sp, sd, v), i)
 
@@ -574,7 +579,7 @@ class Poscar(object):
         # Write lattice vectors
         for i in self.lattice:
             poscar_string += '    {:>11.8f}  {:>11.8f}  {:>11.8f}\n'.format(*i)
-        
+
         # Write the species names
         line = ''
         # If all the species are placeholder H0, H1, H2, ..., then skip writing this line
@@ -606,8 +611,8 @@ class Poscar(object):
         # TODO: Write littec vector and ion velocities and MD extra
 
         return poscar_string
-    
-    def to_file(self, file:str, parents=True) -> None:
+
+    def to_file(self, file:str|Path, parents=True) -> None:
         """
         Write the POSCAR to the given file.
         """
@@ -616,20 +621,20 @@ class Poscar(object):
         Path.mkdir(parent, parents=parents, exist_ok=True)
         with file.open('w') as f:
             f.write(self.to_string())
-        
+
     def generate_potcar_str(self, potcar_dir:str='.') -> str:
         """
         Generate a POTCAR for the current POSCAR.
         """
         # Define pseudopotential path
-        potcar = Potcar(self.species.keys(), potcar_dir)
+        potcar = Potcar(list(self.species.keys()), potcar_dir)
         return potcar.generate_string()
-    
+
     def generate_potcar_file(self, potcar_dir:str='.', output:str='POTCAR', parents=True) -> None:
         """
         Generate and write a POTCAR for the current POSCAR.
         """
-        potcar = Potcar(self.species.keys(), potcar_dir)
+        potcar = Potcar(list(self.species.keys()), potcar_dir)
         potcar.generate_file(output)
 
     def edit_ions(self, ions:Ions):
