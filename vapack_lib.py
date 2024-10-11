@@ -441,7 +441,7 @@ class interpolate(Subcommand):
         dynamics_resolver_message_printed = False
         for i in range(images + 2):
             # Erase the existing ion data in the template
-            image_template.ions = Ions()
+            image_template.ions = Ions([], [])
             # Get interpolated ion positions
             for (j, ion1), (_, ion2) in zip(poscar1.ions, poscar2.ions):  # type: ignore
                 new_ion = Ion()

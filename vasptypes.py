@@ -77,6 +77,11 @@ class Ion(object):
 
 
 # For use in POSCAR type hinting and ion portability
+# TODO: !!! EXTREMELY IMPORTANT !!!
+# Somehow, appending to an Ions object somewhere in the code appends the index
+# to a global Ions indices variable. This becomes visible after doing some work,
+# instantiating a new, empty Ions with `Ions()` and then querying its indices
+# variable.
 class Ions(list[Ion]):
     """
     __iter__() returns index first, adhering to enum style.
@@ -85,9 +90,9 @@ class Ions(list[Ion]):
     it was derived from; allowing for edits to POSCAR contents later.
     """
 
-    def __init__(self, ions: list[Ion] = [], indices: list = []):
+    def __init__(self, ions: list[Ion] = [], indices: list[int] = []) -> None:
         self.indices: list[int] = indices
-        return super().__init__(ions)
+        super().__init__(ions)
 
     # TODO: Fix this so Pyright stops complaining later?
     def __iter__(self):  # type: ignore
@@ -382,7 +387,7 @@ class Poscar(object):
         species: dict = {},
         selective_dynamics: bool = False,
         mode: str = "Direct",
-        ions: Ions = Ions(),
+        ions: Ions = Ions([], []),
         lattice_velocity: NDArray = np.zeros((3, 3)),
         mdextra: str = "",
     ):
@@ -581,7 +586,7 @@ class Poscar(object):
 
             # TODO: Strict type hinting HATES this section
             # Read in ion
-            s_ions = Ions()
+            s_ions = Ions([], [])
             ions = it.chain.from_iterable([[sp] * c for sp, c in s_species.items()])
             for i, sp in enumerate(ions):
                 line = f.readline().split()
