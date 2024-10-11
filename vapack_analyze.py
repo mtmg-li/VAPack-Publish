@@ -7,6 +7,40 @@ import vasptypes_extension as vte
 from vasptypes import Ions, Poscar
 
 
+def coordination_number(
+    poscar: Poscar,
+    index: list[int] | int,
+    max_bondlength: float,
+    species_filter: list[str] | None = None,
+) -> int | npt.NDArray:
+    poscar = deepcopy(poscar)
+    poscar._convert_to_cartesian()
+    species_filter = (
+        list(poscar.species.keys()) if species_filter is None else species_filter
+    )
+    if not isinstance(index, (list,)):
+        index = [index]
+    coordinations = np.zeros(len(index), dtype=np.int64)
+    for i, ion_i in enumerate(index):
+        neighbors = vte.get_neighbors(poscar, ion_i, max_bondlength, "c", True)
+        coordinations[i] = len(
+            [i for i, ion in neighbors if ion.species in species_filter]
+        )
+    if len(coordinations) == 1:
+        coordinations = coordinations[0]
+    return coordinations
+
+
+def all_species_coordination_number(
+    poscar: Poscar,
+    species: str,
+    max_bondlength: float,
+    species_filter: list[str] | None = None,
+) -> int | npt.NDArray:
+    ion_indices = [i for i, ion in poscar.ions if ion.species == species]
+    return coordination_number(poscar, ion_indices, max_bondlength, species_filter)
+
+
 def bond_angle(
     poscar: Poscar, indices: tuple[int, int, int], degrees: bool = False
 ) -> float:
@@ -20,7 +54,7 @@ def bond_angle(
     poscar._convert_to_cartesian()
     # Center the poscar around the central ion/atom
     ion_center = poscar.ions[indices[1]]
-    poscar = vte.get_centered_around(poscar, ion_center.position, poscar.mode) # type: ignore
+    poscar = vte.get_centered_around(poscar, ion_center.position, poscar.mode)  # type: ignore
     # Create some better names
     ion_a = poscar.ions[indices[0]]
     ion_b = poscar.ions[indices[2]]
@@ -51,7 +85,7 @@ def bond_angle(
 
 def all_bond_angles(
     poscar: Poscar,
-    chain: tuple[str, str, str]|str,
+    chain: tuple[str, str, str] | str,
     max_bondlength: int,
     degrees: bool = False,
 ) -> npt.NDArray:
@@ -62,9 +96,9 @@ def all_bond_angles(
         species_b = chain[2].strip()
         species_center = chain[1].strip()
     elif isinstance(chain, str):
-        cl = chain.split('-')
+        cl = chain.split("-")
         if len(cl) != 3:
-            raise RuntimeError(f'Bad bond angle chain provided: {chain}')
+            raise RuntimeError(f"Bad bond angle chain provided: {chain}")
         species_a = cl[0].strip()
         species_b = cl[2].strip()
         species_center = cl[1].strip()
@@ -107,7 +141,7 @@ def all_bond_angles(
 
 def bond_angle_histogram(
     poscar: Poscar,
-    chain: tuple[str, str, str]|str,
+    chain: tuple[str, str, str] | str,
     max_bondlength: int,
     bins: int = 10,
     degrees: bool = False,
