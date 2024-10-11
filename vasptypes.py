@@ -463,7 +463,7 @@ class Poscar(object):
         Ainv = np.linalg.inv(A)
         # Convert all ion positions to fractions of the lattice vectors and round to zero
 
-        for i, _ in self.ions:
+        for i, _ in enumerate(self.ions):
             self.ions[i]._apply_transformation(Ainv)
 
         # Change the mode string
@@ -483,7 +483,7 @@ class Poscar(object):
         # Convert all ion positions to fractions of the lattice vectors and round to zero
         # Create the transformation matrix and tolerance
         A = self.lattice.transpose()
-        for i, _ in self.ions:
+        for i, _ in enumerate(self.ions):
             self.ions[i]._apply_transformation(A)
 
         # Change the mode string
