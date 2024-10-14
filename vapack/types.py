@@ -57,7 +57,7 @@ class Ion(object):
         self.position = r
 
     @staticmethod
-    def list_to_bools(sd_tags:tuple[str,str,str]):
+    def list_to_bools(sd_tags: tuple[str, str, str]):
         """
         Method to convert selective dynamics flags from strings to bools.
         Enforces expected characters and length.
@@ -257,7 +257,7 @@ class Incar(dict):
                 f.write(self.to_rich_string())
 
     @classmethod
-    def from_file(cls, input: Path|str = "INCAR"):
+    def from_file(cls, input: Path | str = "INCAR"):
         input_path = Path(input)
         tags = {}
         sections = {}
@@ -332,7 +332,7 @@ class Incar(dict):
 class Potcar(object):
     """ """
 
-    def __init__(self, potentials: list[str] = [], directory: Path|str = "."):
+    def __init__(self, potentials: list[str] = [], directory: Path | str = "."):
         self.potentials = potentials
         self.directory = Path(directory)
         if not (self.directory.exists()):
@@ -366,7 +366,9 @@ class Potcar(object):
 
         return contents
 
-    def generate_file(self, output: Path|str = "POTCAR", parents: bool = True) -> None:
+    def generate_file(
+        self, output: Path | str = "POTCAR", parents: bool = True
+    ) -> None:
         # Choose the LDA or PBE automatically if it isn't specified
         output_path = Path(output)
         parent = output_path.parent
@@ -521,7 +523,7 @@ class Poscar(object):
         return self.mode[0].lower() == "d"
 
     @classmethod
-    def from_file(cls, poscar_file: Path|str):
+    def from_file(cls, poscar_file: Path | str):
         """
         Return a POSCAR object with data matching the provided poscar_file.
         """

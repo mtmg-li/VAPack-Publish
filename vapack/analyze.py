@@ -1,10 +1,10 @@
 from copy import deepcopy
+from types import Ions, Poscar
 
 import numpy as np
 import numpy.typing as npt
 
-import vasptypes_extension as vte
-from vasptypes import Ions, Poscar
+import vapack.extensions as vext
 
 
 def coordination_number(
@@ -22,7 +22,7 @@ def coordination_number(
         index = [index]
     coordinations = np.zeros(len(index), dtype=np.int64)
     for i, ion_i in enumerate(index):
-        neighbors = vte.get_neighbors(poscar, ion_i, max_bondlength, "c", True)
+        neighbors = vext.get_neighbors(poscar, ion_i, max_bondlength, "c", True)
         coordinations[i] = len(
             [i for i, ion in neighbors if ion.species in species_filter]
         )
@@ -54,7 +54,7 @@ def bond_angle(
     poscar._convert_to_cartesian()
     # Center the poscar around the central ion/atom
     ion_center = poscar.ions[indices[1]]
-    poscar = vte.get_centered_around(poscar, ion_center.position, poscar.mode)  # type: ignore
+    poscar = vext.get_centered_around(poscar, ion_center.position, poscar.mode)  # type: ignore
     # Create some better names
     ion_a = poscar.ions[indices[0]]
     ion_b = poscar.ions[indices[2]]
@@ -117,7 +117,7 @@ def all_bond_angles(
         if ion.species == species_center:
             center_ions.append(ion, i)
     for i, ion_c in center_ions:
-        neighbors = vte.get_neighbors(
+        neighbors = vext.get_neighbors(
             poscar, i, max_bondlength, mode="c", periodic=True
         )
         # If not enough neighbors were discovered, then skip this one

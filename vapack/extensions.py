@@ -1,9 +1,8 @@
 from copy import deepcopy
+from types import Ion, Ions, Poscar  # type: ignore
 
 import numpy as np
 import numpy.typing as npt
-
-from vasptypes import Ion, Ions, Poscar
 
 
 def translate(ions: Ions, r: npt.NDArray[np.float64]) -> Ions:
@@ -37,7 +36,7 @@ def get_neighbors(
 
     # TODO: Type hinting with 'center'
     center = poscar.ions[index].position
-    selection = get_select_sphere(poscar, center, radius, mode, periodic) # type: ignore
+    selection = get_select_sphere(poscar, center, radius, mode, periodic)  # type: ignore
     # Remove the focused ion from the neighbors list
     # This is used since the Ions object does not support "popping" by poscar index
     # (at the time of writing)
@@ -50,12 +49,12 @@ def get_neighbors(
         # Reverting from cartesian to direct
         A = poscar.lattice.transpose()
         Ainv = np.linalg.inv(A)
-        for i, (_, ion) in enumerate(selection): # type: ignore
+        for i, (_, ion) in enumerate(selection):  # type: ignore
             selection[i]._apply_transformation(Ainv)
     elif converted and poscar.is_direct():
         # Reverting from direct to cartesian
         A = poscar.lattice.transpose()
-        for i, (_, ion) in enumerate(selection): # type: ignore
+        for i, (_, ion) in enumerate(selection):  # type: ignore
             selection[i]._apply_transformation(A)
 
     return selection
@@ -65,7 +64,7 @@ def get_select_sphere(
     poscar: Poscar,
     center: npt.NDArray[np.float64],
     radius: float,
-    mode: str|None = None,
+    mode: str | None = None,
     periodic: bool = True,
 ) -> Ions:
     """
@@ -89,7 +88,7 @@ def get_select_sphere(
 
     # Iterate through each ion in the poscar and check the distance from the center
     # Populate an Ions list with all that reside within
-    selection_temp:list[tuple[Ion, int]] = []
+    selection_temp: list[tuple[Ion, int]] = []
     for i, ion in poscar.ions:
         d = np.sqrt(((ion.position - center) ** 2).sum())
         if d <= radius:
@@ -160,7 +159,9 @@ def get_centered_around(
     if type(point) is not npt.NDArray:
         point = np.array(point)
     if np.size(point) != 3:
-        raise RuntimeError(f'Centering around point {point} is ambiguous without 3 dimensions')
+        raise RuntimeError(
+            f"Centering around point {point} is ambiguous without 3 dimensions"
+        )
     # If asked to work in a cartesian, convert the point to direct
     if mode[0].lower() == "c":
         A = poscar.lattice.transpose()
