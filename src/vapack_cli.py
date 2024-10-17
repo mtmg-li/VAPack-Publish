@@ -34,6 +34,42 @@ from vapack.types import Incar, Ion, Ions, Poscar, Potcar
 #    the parent parser's namespace (currently only 'verbose'
 #    and 'no_write').
 
+def main():
+    subcommands = [sc for sc in Subcommand.__subclasses__()]
+
+    # Define top level parser
+    parser = ArgumentParser(description="Do things for VASP")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("-n", "--no_write", action="store_true")
+    subparsers = parser.add_subparsers()
+
+    # Iterate through the subcommands and add the subparsers to the top level
+    for subcommand in subcommands:
+        subcommand.parser.set_defaults(func=subcommand.run)
+        subparsers.add_parser(
+            subcommand.__name__,
+            parents=[subcommand.parser],
+            add_help=False,
+            help=subcommand.description,
+        )
+
+    # Run this stuff
+    args = parser.parse_args()
+
+    # If a subparser was called, it'll set func in the args namespace
+    if args.__contains__("func"):
+        # Get a dictionary of the arguments to pass to the run function
+        arg_dict = deepcopy(args.__dict__)
+        # Remove the func entry
+        arg_dict.pop("func")
+        # Run the appropriate function with all arguments
+        args.func(**arg_dict)
+
+    # If func was not set, print the help message and quit
+    else:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
 
 # Template class for subcommands. Must be derived from to be
 # automatically discovered.
@@ -507,82 +543,49 @@ class interpolate(Subcommand):
             image_template.to_file(output_path)
 
 
-class genincar(Subcommand):
-    # TODO: Rerunning the generator can produce different ordering for one section's
-    # tags. It appears random, but doesn't cause any (known) issues. Low priority, I guess?
-    description = "Generate an INCAR file from the provided templates"
-    parser = ArgumentParser()
-    parser.add_argument("sources", nargs="+", type=str, help="Input files")
-    parser.add_argument("-o", "--output", type=str, default="INCAR", help="Output file")
-    parser.add_argument(
-        "-d",
-        "--template_dir",
-        type=str,
-        default="templates/incar/",
-        help="Template directory",
-    )
-    parser.add_argument("-s", "--system", type=str, help="System name")
+# class genincar(Subcommand):
+#     # TODO: Rerunning the generator can produce different ordering for one section's
+#     # tags. It appears random, but doesn't cause any (known) issues. Low priority, I guess?
+#     description = "Generate an INCAR file from the provided templates"
+#     parser = ArgumentParser()
+#     parser.add_argument("sources", nargs="+", type=str, help="Input files")
+#     parser.add_argument("-o", "--output", type=str, default="INCAR", help="Output file")
+#     parser.add_argument(
+#         "-d",
+#         "--template_dir",
+#         type=str,
+#         default="templates/incar/",
+#         help="Template directory",
+#     )
+#     parser.add_argument("-s", "--system", type=str, help="System name")
 
-    @staticmethod
-    def run(  # type: ignore
-        sources: list[str],
-        output: str = "INCAR",
-        template_dir: Path | str = "templates/incar/",
-        system: str | None = None,
-        verbose: bool = False,
-        no_write: bool = False,
-    ):
-        # Set the template containing directory
-        template_dir = Path(template_dir)
-        # Get paths to the templates and ensure they exist
-        template_files = [Path(template_dir, s) for s in sources]
-        for f in template_files:
-            if not (f.exists()):
-                raise RuntimeError("Could not find template")
-        # Iterate through the templates and construct the incar
-        incar = Incar()
-        for f in template_files:
-            incar |= Incar.from_file(f)
+#     @staticmethod
+#     def run(  # type: ignore
+#         sources: list[str],
+#         output: str = "INCAR",
+#         template_dir: Path | str = "templates/incar/",
+#         system: str | None = None,
+#         verbose: bool = False,
+#         no_write: bool = False,
+#     ):
+#         # Set the template containing directory
+#         template_dir = Path(template_dir)
+#         # Get paths to the templates and ensure they exist
+#         template_files = [Path(template_dir, s) for s in sources]
+#         for f in template_files:
+#             if not (f.exists()):
+#                 raise RuntimeError("Could not find template")
+#         # Iterate through the templates and construct the incar
+#         incar = Incar()
+#         for f in template_files:
+#             incar |= Incar.from_file(f)
 
-        # Set the system name
-        incar["System"] = str(system)
+#         # Set the system name
+#         incar["System"] = str(system)
 
-        # Write the file
-        incar.to_file(output)
+#         # Write the file
+#         incar.to_file(output)
 
 
 if __name__ == "__main__":
-    subcommands = [sc for sc in Subcommand.__subclasses__()]
-
-    # Define top level parser
-    parser = ArgumentParser(description="Do things for VASP")
-    parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("-n", "--no_write", action="store_true")
-    subparsers = parser.add_subparsers()
-
-    # Iterate through the subcommands and add the subparsers to the top level
-    for subcommand in subcommands:
-        subcommand.parser.set_defaults(func=subcommand.run)
-        subparsers.add_parser(
-            subcommand.__name__,
-            parents=[subcommand.parser],
-            add_help=False,
-            help=subcommand.description,
-        )
-
-    # Run this stuff
-    args = parser.parse_args()
-
-    # If a subparser was called, it'll set func in the args namespace
-    if args.__contains__("func"):
-        # Get a dictionary of the arguments to pass to the run function
-        arg_dict = deepcopy(args.__dict__)
-        # Remove the func entry
-        arg_dict.pop("func")
-        # Run the appropriate function with all arguments
-        args.func(**arg_dict)
-
-    # If func was not set, print the help message and quit
-    else:
-        parser.print_help(sys.stderr)
-        sys.exit(1)
+    main()

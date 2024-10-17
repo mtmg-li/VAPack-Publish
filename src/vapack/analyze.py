@@ -1,10 +1,10 @@
 from copy import deepcopy
-from types import Ions, Poscar
 
 import numpy as np
 import numpy.typing as npt
 
 import vapack.extensions as vext
+from vapack.types import Ions, Poscar
 
 
 def coordination_number(

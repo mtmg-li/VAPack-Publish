@@ -1,8 +1,9 @@
 from copy import deepcopy
-from types import Ion, Ions, Poscar  # type: ignore
 
 import numpy as np
 import numpy.typing as npt
+
+from vapack.types import Ion, Ions, Poscar  # type: ignore
 
 
 def translate(ions: Ions, r: npt.NDArray[np.float64]) -> Ions:

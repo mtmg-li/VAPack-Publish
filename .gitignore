@@ -6,3 +6,5 @@ POTCAR
 KPOINTS
 .pytest_cache
 .vscode
+dist/
+*.egg-info
