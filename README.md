@@ -2,37 +2,19 @@
 
 A collection of utilities for generation and manipulation of input files for the Vienna Ab-initio Simulation Package (VASP).
 
-_More to come!_
+There is a command line interface for making common adjustments to simulation files and an importable library that will allow you to use the features in any script or interactive interpreter you wish.
 
 ## Installation
 
-There is currently no automated or standardized way to "install" VAPack.
-To conveniently call the vapack scripts from anywhere on your system, you should create an alias in your shell environment.
-Keep in mind that this alias will call the version of the script in the most recent branch you switched to.
-If you're frequently switching, such as for development, consider making a separate directory that remains on the master branch for your alias.
+VAPack now follows a source-tree layout and includes build instructions.
+Before building VAPack, it's recommended to have a virtual environment to install to.
+Your Python environment must have `build` installed, which you can get with `pip install --upgrade build`.
+From there, simple run build with `python -m build` while in the top level of VAPack.
+Build should automatically find and package all the project files into an archive that gets placed into a `./dist` directory.
+Install this archive using pip with the command `pip install ./dist/vapack-{ver}.tar.gz`, where `ver` is the package version.
 
-### Bash
+## Usage
 
-Edit your `.bashrc` file, likely located in your home directory.
-Add the line
-```bash
-alias vapack="<vapack directory>/vapack.py"
-```
-where `<vapack directory>` is the location of your copy of the vapack repository.
-
-### Zsh
-
-Edit your `.zshrc` file, likely located in your home directory.
-Add the line
-```bash
-alias vapack="<vapack directory>/vapack.py"
-```
-where `<vapack directory>` is the location of your copy of the vapack repository.
-
-### Fish
-
-Enter the command
-```bash
-alias --save vapack="<vapack directory>/vapack.py"
-```
-where `<vapack directory>` is the location of your copy of the vapack repository.
+VAPack is now available in your virtual environment, anywhere in your system.
+You can call the command line tool by simply typing `vapack`.
+You can also import the various modules in the package by adding `import vapack.{module}` into your scripts.
