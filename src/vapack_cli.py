@@ -21,17 +21,9 @@ from vapack.types import Incar, Ion, Ions, Poscar, Potcar
 #    argument parser default values, which if not specified
 #    is None.
 #
-# 2. The Subcommand class and any of its subclasses are NOT
-#    meant to be instantiated as objects. They are containers
-#    for each subcommand, its parser, and its functions that
-#    enable easy additions without modifying the main program,
-#    reduce redundancy, and help organization.
-#
-# 3. The run function in each subcommand MUST take the exact
-#    same arguments as are created in its parser's namespace.
-#    In addition, it must also take any that are present in
-#    the parent parser's namespace (currently only 'verbose'
-#    and 'no_write').
+# 2. This is now constructed using Click, which does what
+#    I had previously implemented, but better. See:
+#    https://palletsprojects.com/projects/click/
 
 
 @click.group()
