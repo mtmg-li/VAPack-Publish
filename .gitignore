@@ -7,4 +7,5 @@ KPOINTS
 .pytest_cache
 .vscode
 dist/
-*.egg-info
+*.egg-info/
+build/
