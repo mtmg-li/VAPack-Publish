@@ -9,12 +9,12 @@ There is a command line interface for making common adjustments to simulation fi
 VAPack now follows a source-tree layout and includes build instructions.
 Before building VAPack, it's recommended to have a virtual environment to install to.
 Your Python environment must have `build` installed, which you can get with `pip install --upgrade build`.
-From there, simple run build with `python -m build` while in the top level of VAPack.
-Build should automatically find and package all the project files into an archive that gets placed into a `./dist` directory.
+From there, simple run build with `python -m build --wheel` while in the top level of VAPack.
+Build should automatically find and package all the project files into a wheel file (`.whl`) that gets placed into a new `./dist` directory.
 
 ## Install
 
-After downloading or building the package, install it into your virtual environment using pip with `pip install vapack-{ver}.tar.gz` where `ver` is the package version.
+After downloading or building the package, install it into your virtual environment using pip with `pip install vapack-{ver}-py3-none-any.whl` where `ver` is the package version.
 
 ## Usage
 
