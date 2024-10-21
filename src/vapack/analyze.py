@@ -2,6 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 import numpy.typing as npt
+import plotly.figure_factory as ff
 
 import vapack.extensions as vext
 from vapack.types import Ions, Poscar
@@ -139,13 +140,33 @@ def all_bond_angles(
     return bond_angles
 
 
-def bond_angle_histogram(
+def bond_angle_histogram_plotly(
     poscar: Poscar,
     chain: tuple[str, str, str] | str,
     max_bondlength: int,
-    bins: int = 10,
+    bin_width: float = 5,
     degrees: bool = False,
 ):
+    # Set up graph information
     (amin, amax) = (0, 180) if degrees else (0, np.pi)
+    units = "deg" if degrees else "rad"
     angles = all_bond_angles(poscar, chain, max_bondlength, degrees)
-    return np.histogram(angles, bins, range=(amin, amax))
+    if isinstance(chain, (list, tuple)):
+        label = "-".join(chain)
+    else:
+        label = chain
+
+    # Create kernel density estimation histogram using figure factory
+    # This is "deprecated," but it's not because this functionality doesn't exist in Express
+    # If this gets broken later, compute the kernel using scipy.stats.gaussian_kde and plot it
+    # with a line graph on top of a basic histogram
+    fig = ff.create_distplot(
+        hist_data=angles, data_labels=label, bin_size=bin_width, show_rug=False
+    )
+
+    fig.layout.xaxis.title.text = f"Angle ({units})"
+    fig.layout.yaxis.title.text = "p(x)"
+
+    fig.update_xaxes(range=[amin, amax])
+
+    return fig
