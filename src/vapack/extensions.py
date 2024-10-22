@@ -91,8 +91,8 @@ def get_select_sphere(
     # Populate an Ions list with all that reside within
     selection_temp: list[tuple[Ion, int]] = []
     for i, ion in poscar.ions:
-        d = np.sqrt(((ion.position - center) ** 2).sum())
-        if d <= radius:
+        d2 = ((ion.position - center) ** 2).sum()
+        if d2 <= radius*radius:
             selection_temp.append((ion, i))
     selection = Ions([i[0] for i in selection_temp], [i[1] for i in selection_temp])
 

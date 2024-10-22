@@ -161,7 +161,7 @@ def bond_angle_histogram_plotly(
     # If this gets broken later, compute the kernel using scipy.stats.gaussian_kde and plot it
     # with a line graph on top of a basic histogram
     fig = ff.create_distplot(
-        hist_data=angles, data_labels=label, bin_size=bin_width, show_rug=False
+        hist_data=[angles], group_labels=[label], bin_size=bin_width, show_rug=False
     )
 
     fig.layout.xaxis.title.text = f"Angle ({units})"

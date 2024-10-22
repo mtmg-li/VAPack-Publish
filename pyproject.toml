@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vapack"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     { name = "Ian Kerby", email = "iankerby@u.boisestate.edu" },
 ]
 dependencies = [
     "numpy",
-    "click"
+    "click",
+    "plotly"
 ]
 
 [project.scripts]
