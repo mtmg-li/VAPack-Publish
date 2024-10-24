@@ -7,6 +7,7 @@ from typing import SupportsIndex
 
 import numpy as np
 from numpy.typing import NDArray
+import vapack.rec_pseudopotentials as rec_pseudopotentials
 
 
 # Storage of position mode (direct or cartesian) is _only_ done in the POSCAR.
@@ -343,18 +344,57 @@ class Potcar(object):
         poscar = Poscar.from_file(input)
         return cls(list(poscar.species.keys()), directory)
 
-    def generate_string(self) -> str:
+    def generate_string(
+        self,
+        use_recommended: bool = False,
+        use_lda: bool | None = None,
+        use_gw: bool = False,
+    ) -> str:
+        """
+        If use_recommended is true, the this function will use an internal list of recommended
+        pseudopotentials for the matching species.
+        These recommendations are split between LDA/PBE and Standard/GW, which are also specified
+        using `use_pbe` and `use_gw`.
+        If `use_lda` is left as `None` it will be automatically determined. This is incompatible with
+        specifiying the LDA or GGA(PBE) directory explicitly.
+        The recommendation algorithm will ignore any special pseudopotentials that were specified
+        manually. (i.e. it ignores entries with '_' or `.' in the name.)
+        """
         # Choose the LDA or PBE automatically if it isn't specified
         directory = Path(self.directory)
-        if directory.name.lower() not in ["gga", "lda"]:
+        if use_lda is None:
             if len(self.potentials) > 1:
                 directory = Path(directory, "GGA")
+                use_lda = False
             else:
                 directory = Path(directory, "LDA")
+                use_lda = True
+        else:
+            directory = Path(directory, "LDA" if use_lda else "GGA")
+
+        # Make sure the directory actually exists first
         if not (directory.exists()):
             raise RuntimeError(
                 f"Expected potcar directory `{directory}` does not exist"
             )
+
+        # Substitute any recommended potentials
+        if use_recommended:
+            # Choose the right variety
+            ps_approx = "lda" if use_lda else "pbe"
+            ps_type = "standard" if not use_gw else "gw"
+            # Retrieve the right dictionary
+            ps_dict_str = f"{ps_type}_{ps_approx}"
+            ps_dictionary = getattr(rec_pseudopotentials, ps_dict_str)
+            # Make the substitutions, making no changes to individual entries in
+            # the event of failure
+            for i, sp in enumerate(self.potentials):
+                if not sp.strip().isalpha():
+                    continue
+                try:
+                    self.potentials[i] = ps_dictionary[sp.capitalize()]
+                except KeyError:
+                    continue
 
         # Create a list of paths for the species' POTCARs
         potential_paths = [Path(directory, sp, "POTCAR") for sp in self.potentials]
@@ -367,14 +407,19 @@ class Potcar(object):
         return contents
 
     def generate_file(
-        self, output: Path | str = "POTCAR", parents: bool = True
+        self,
+        output: Path | str = "POTCAR",
+        parents: bool = True,
+        use_recommended: bool = False,
+        use_lda: bool | None = None,
+        use_gw: bool = False,
     ) -> None:
         # Choose the LDA or PBE automatically if it isn't specified
         output_path = Path(output)
         parent = output_path.parent
         Path.mkdir(parent, parents=parents, exist_ok=True)
         with output_path.open("w") as f:
-            f.write(self.generate_string())
+            f.write(self.generate_string(use_recommended, use_lda, use_gw))
 
 
 # Class to parse and store POSCAR data in a rich, type hinted, format

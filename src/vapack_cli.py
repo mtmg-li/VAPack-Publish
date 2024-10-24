@@ -152,6 +152,9 @@ def vacuum(
     multiple=True,
     help="Create the POTCAR according to a list of potentials instead",
 )
+@click.option("--recommended/--no-recommended", default=True)
+@click.option("--lda/--no-lda", default=None)
+@click.option("--gw/--no-gw", default=False)
 @click.option(
     "-d",
     "--directory",
@@ -169,6 +172,9 @@ def potcar(
     output: Path | str = Path("./POTCAR"),
     potentials: list = [],
     directory: str = ".",
+    recommended: bool = False,
+    lda: bool | None = None,
+    gw: bool = False,
     verbose: bool = False,
     write: bool = False,
 ):
@@ -198,12 +204,22 @@ def potcar(
 
     # Verbose species message
     if verbose:
-        if directory_path.name.lower() in ["gga", "lda"]:
-            print(f"Using {directory_path.name.upper()} potentials")
+        if lda is not None:
+            ps_type = "LDA" if lda else "GGA"
+            ps_type = ps_type
         elif len(species) > 1:
-            print("Using GGA potentials")
+            ps_type = "(auto) GGA"
         else:
-            print("Using LDA potentials")
+            ps_type = "(auto) LDA"
+        print(f"Using {ps_type} potentials")
+    
+        if recommended:
+            print("Substituting for recommended pseudopotentials")
+        
+        if gw:
+            print("Using GW pseudopotentials")
+        else:
+            print("Using standard pseudopotentials")
 
     # Generate and write the potcar
     if not write:
@@ -211,7 +227,9 @@ def potcar(
             print("No changes written")
         return
 
-    potcar.generate_file(output_path)
+    potcar.generate_file(
+        output_path, use_recommended=recommended, use_lda=lda, use_gw=gw
+    )
 
     if verbose:
         print("Changes written to {}".format(output_path))
