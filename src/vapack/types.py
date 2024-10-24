@@ -556,9 +556,12 @@ class Poscar(object):
             # Enforce capitalization
             line = f.readline()
             species = []
-            if line.replace(" ", "").strip().isalpha():
-                species = [sp.lower().capitalize() for sp in line.split()]
-                line = f.readline()
+            # TODO: Temporarily removing the following check since other code requires species names
+            # even if the official POSCAR/CONTCAR spec does not. Consider allowing no species names
+            # later.
+            # if not line.isspace():
+            species = [sp.lower().capitalize() for sp in line.split()]
+            line = f.readline()
 
             # Read ions per species
             counts = line.strip().split()

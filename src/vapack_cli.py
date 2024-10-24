@@ -513,5 +513,5 @@ def interpolate(
 #     incar.to_file(output)
 
 
-# if __name__ == "__main__":
-#     cli()
+if __name__ == "__main__":
+    cli()
