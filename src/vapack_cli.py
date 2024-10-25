@@ -40,8 +40,8 @@ def cli():
     type=click.Choice(["cartesian", "c", "direct", "d"], case_sensitive=False),
 )
 @click.option("-o", "--output", help="Output file", type=click.Path())
-@click.option("--verbose/--no-verbose")
-@click.option("--write/--no-write", default=True)
+@click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+@click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
 def convert(
     input: Path | str,
     mode: str | None = None,
@@ -94,8 +94,8 @@ def convert(
     help="Output file",
     type=click.Path(readable=True, dir_okay=False, path_type=Path),
 )
-@click.option("--verbose/--no-verbose")
-@click.option("--write/--no-write", default=True)
+@click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+@click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
 def vacuum(
     input: str,
     depth: npt.NDArray,
@@ -152,9 +152,9 @@ def vacuum(
     multiple=True,
     help="Create the POTCAR according to a list of potentials instead",
 )
-@click.option("--recommended/--no-recommended", default=True)
-@click.option("--lda/--no-lda", default=None)
-@click.option("--gw/--no-gw", default=False)
+@click.option("--recommended/--no-recommended", default=True, help="Use recommended pseudopotentials. Doesn't apply to manual selections.")
+@click.option("--lda/--no-lda", default=None, help="Use the LDA pseudopotentials instead of PBE")
+@click.option("--gw/--no-gw", default=False, help="Use GW pseudopotentials instead of standard")
 @click.option(
     "-d",
     "--directory",
@@ -165,8 +165,8 @@ def vacuum(
 @click.option(
     "-o", "--output", help="Output file", type=click.Path(), default=Path("./POTCAR")
 )
-@click.option("--verbose/--no-verbose")
-@click.option("--write/--no-write", default=True)
+@click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+@click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
 def potcar(
     input: str,
     output: Path | str = Path("./POTCAR"),
@@ -285,8 +285,8 @@ def potcar(
     default=False,
     help="Preserve the flags of ions that aren't modified",
 )
-@click.option("--verbose/--no-verbose")
-@click.option("--write/--no-write", default=True)
+@click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+@click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
 def slabfreeze(
     input: Path | str,
     x_range: list[float] | None = None,
@@ -362,12 +362,12 @@ def slabfreeze(
     type=int,
     default=1,
 )
-@click.option("--selective-dynamics", is_flag=True, default=True)
-@click.option(
-    "--center/--no-center",
-    default=False,
-    help="Center the POSCARS about center of mass (unused)",
-)
+@click.option("--selective-dynamics", is_flag=True, default=True, help="Enable reading of selective dynamics tags")
+# @click.option(
+#     "--center/--no-center",
+#     default=False,
+#     help="Center the POSCARS about center of mass",
+# )
 @click.option(
     "--boundary-resolver",
     help="How to resolve boundary cross cases",
@@ -378,13 +378,13 @@ def slabfreeze(
     help="How to resolve disagreements between selective dynamics",
     type=click.Choice(["first", "last", "free", "fixed"]),
 )
-@click.option("--verbose/--no-verbose")
-@click.option("--write/--no-write", default=True)
+@click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+@click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
 def interpolate(
     file1: str,
     file2: str,
     images: int = 1,
-    center: bool = False,
+    # center: bool = False,
     selective_dynamics: bool = False,
     boundary_resolver: str | None = None,
     dynamics_resolver: str | None = None,
@@ -502,8 +502,8 @@ def interpolate(
 #     type=click.Path(readable=True, dir_okay=False, path_type=Path),
 #     default=Path("./INCAR"),
 # )
-# @click.option("--verbose/--no-verbose")
-# @click.option("--write/--no-write", default=True)
+# @click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+# @click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
 # def genincar(
 #     sources: list[str],
 #     output: Path | str = Path("./INCAR"),
