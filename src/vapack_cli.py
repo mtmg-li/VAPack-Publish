@@ -483,52 +483,53 @@ def interpolate(
         image_template.to_file(output_path)
 
 
-# @cli.command(help="Generate an INCAR file from the provided templates")
-# @click.option(
-#     "-s", "--source", multiple=True, type=str, help="Names of source templates"
-# )
-# @click.option("-n", "--name", type=str, help="System name")
-# @click.option(
-#     "-d",
-#     "--template-dir",
-#     type=click.Path(readable=True, file_okay=False, exists=True, path_type=Path),
-#     default=Path("./templates"),
-#     help="Template directory",
-# )
-# @click.option(
-#     "-o",
-#     "--output",
-#     help="Output file",
-#     type=click.Path(readable=True, dir_okay=False, path_type=Path),
-#     default=Path("./INCAR"),
-# )
-# @click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
-# @click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
-# def genincar(
-#     sources: list[str],
-#     output: Path | str = Path("./INCAR"),
-#     template_dir: Path | str = "templates/incar/",
-#     name: str | None = None,
-#     verbose: bool = False,
-#     write: bool = False,
-# ):
-#     # Set the template containing directory
-#     template_dir = Path(template_dir)
-#     # Get paths to the templates and ensure they exist
-#     template_files = [Path(template_dir, s) for s in sources]
-#     for f in template_files:
-#         if not (f.exists()):
-#             raise RuntimeError("Could not find template")
-#     # Iterate through the templates and construct the incar
-#     incar = Incar()
-#     for f in template_files:
-#         incar |= Incar.from_file(f)
+@cli.command(help="Generate an INCAR file from the provided templates")
+@click.option(
+    "-s", "--source", multiple=True, type=str, help="Names of source templates"
+)
+@click.option("-n", "--name", type=str, help="System name")
+@click.option(
+    "-d",
+    "--template-dir",
+    type=click.Path(readable=True, file_okay=False, exists=True, path_type=Path),
+    default=Path("."),
+    help="Template directory",
+)
+@click.option(
+    "-o",
+    "--output",
+    help="Output file",
+    type=click.Path(readable=True, dir_okay=False, path_type=Path),
+    default=Path("./INCAR"),
+)
+@click.option("--verbose/--no-verbose", help="Print operation messages to stdout")
+@click.option("--write/--no-write", default=True, help="Enable/disable writing changes to disk.")
+def genincar(
+    source: list[str],
+    output: Path | str = Path("./INCAR"),
+    template_dir: Path | str = ".",
+    name: str | None = None,
+    verbose: bool = False,
+    write: bool = False,
+):
+    # Set the template containing directory
+    if not isinstance(template_dir, Path):
+        template_dir = Path(template_dir)
+    # Get paths to the templates and ensure they exist
+    template_files = [Path(template_dir, s).resolve() for s in source]
+    for f in template_files:
+        if not (f.exists()):
+            raise RuntimeError(f"Could not find template {f.name}")
+    # Iterate through the templates and construct the incar
+    incar = Incar()
+    for f in template_files:
+        incar |= Incar.from_file(f)
 
-#     # Set the system name
-#     incar["System"] = str(name)
+    # Set the system name, overriding whatever may have been set in the templates
+    incar["System"] = str(name)
 
-#     # Write the file
-#     incar.to_file(output)
+    # Write the file
+    incar.to_file(output)
 
 
 if __name__ == "__main__":
