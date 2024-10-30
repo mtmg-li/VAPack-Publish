@@ -1,0 +1,13 @@
+# Ionic
+
+IBRION = 0 ! Choose molecular dynamics
+ISIF = 2 ! Compute stress tensor but do not change box volume
+NSW = {NSW} ! Number of time steps
+POTIM = 1.0 ! Time steps in femtoseconds
+
+# Thermostat
+
+MDALGO = 5 ! Using canonical sampling through velocity rescaling
+CSVR_PERIOD = 2 ! A non-zero CSVR period (in timesteps) to get the NVT ensemble
+TEBEG = {TEBEG} ! Initial temperature
+TEEND = {TEEND} ! Final temperature

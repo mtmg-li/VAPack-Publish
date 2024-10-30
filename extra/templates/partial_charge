@@ -1,0 +1,10 @@
+# Partial Charge Density
+
+NBMOD   = -3        ! Only select occupied bands according to range relative to Fermi energy
+EINT    = -1.5 0.25 ! Select bands from Ef-1.5 to Ef+0.25
+LSEPB   = .FALSE.   ! Default; here for clarity
+LSEPK   = .FALSE.   ! Default; here for clarity
+
+# Output
+
+LPARD = .TRUE. ! Enable output of PARCHG file
