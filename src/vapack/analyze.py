@@ -1,8 +1,11 @@
+import itertools as it
 from copy import deepcopy
 
 import numpy as np
 import numpy.typing as npt
+import plotly.express as px
 import plotly.figure_factory as ff
+import plotly.graph_objects as go
 
 import vapack.extensions as vext
 from vapack.types import Ions, Poscar
@@ -142,30 +145,63 @@ def all_bond_angles(
 
 def bond_angle_histogram_plotly(
     poscar: Poscar,
-    chain: tuple[str, str, str] | str,
-    max_bondlength: int,
-    bin_width: float = 5,
+    chain: tuple[str, str, str] | str | list[str] | list[tuple[str, str, str]],
+    max_bondlength: int | list[int],
+    bin_width: float | list[float] = 0.0872664626,
     degrees: bool = False,
 ):
-    # Set up graph information
+    # Set up graph x-axis information
     (amin, amax) = (0, 180) if degrees else (0, np.pi)
+    if bin_width == 0.0872664626 and degrees:
+        bin_width = 5
     units = "deg" if degrees else "rad"
-    angles = all_bond_angles(poscar, chain, max_bondlength, degrees)
-    if isinstance(chain, (list, tuple)):
-        label = "-".join(chain)
-    else:
-        label = chain
 
-    # Create kernel density estimation histogram using figure factory
-    # This is "deprecated," but it's not because this functionality doesn't exist in Express
-    # If this gets broken later, compute the kernel using scipy.stats.gaussian_kde and plot it
-    # with a line graph on top of a basic histogram
+    # Cast the chain as a list if it isn't already
+    # Be careful of the case where 3 acceptable strings are submitted
+    if isinstance(chain, (list, tuple)) and len(chain) == 3:
+        # If - is in the first element, assume all elements are correctly
+        # formed strings in an iterable and don't change anything
+        if "-" in chain[0]:
+            pass
+        # Otherwise, it's a single list of species and should be stuck inside another list
+        else:
+            chain = (chain,)
+    # If it's not an instance of an iterator (excluding string), cast it as one
+    elif not isinstance(chain, (list, tuple)):
+        chain = (chain,)
+    # Getting here indicates the function received a list that's already fully formed
+    else:
+        pass
+
+    # Check the bondlength parameter
+    try:
+        max_bondlength.__iter__()
+    except AttributeError:
+        max_bondlength = it.repeat(max_bondlength)
+    else:
+        if len(max_bondlength) != len(chain):
+            raise RuntimeError("max_bondlength list and chain list are not same size!")
+
+    color_cycle = it.cycle(px.colors.qualitative.Plotly)
+    colors = [c for c, _ in zip(color_cycle, range(len(chain)))]
+    fig = go.Figure()
+
+    angles = [
+        all_bond_angles(poscar, c, m, degrees) for c, m in zip(chain, max_bondlength)
+    ]
+    labels = ["-".join(s) if "-" not in s else s for s in chain]
+
     fig = ff.create_distplot(
-        hist_data=[angles], group_labels=[label], bin_size=bin_width, show_rug=False
+        hist_data=angles,
+        group_labels=labels,
+        bin_size=bin_width,
+        show_rug=False,
+        colors=colors,
     )
 
     fig.layout.xaxis.title.text = f"Angle ({units})"
     fig.layout.yaxis.title.text = "p(x)"
+    fig.layout.title.text = "Bond Angle Probability Distribution"
 
     fig.update_xaxes(range=[amin, amax])
 
