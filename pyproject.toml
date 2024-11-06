@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vapack"
+requires-python = ">=3.10"
 version = "0.2.4"
 authors = [
     { name = "Ian Kerby", email = "iankerby@u.boisestate.edu" },
