@@ -11,7 +11,8 @@ authors = [
 dependencies = [
     "numpy",
     "click",
-    "plotly"
+    "plotly",
+    "pandas"
 ]
 
 [project.scripts]
